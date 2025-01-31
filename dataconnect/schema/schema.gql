@@ -1,0 +1,47 @@
+type User @table {
+  id: String! @col(name: "uid")
+  username: String! @col(dataType: "varchar(50)")
+  email: String! @col(dataType: "varchar(100)")
+  createdAt: Date @default(expr: "request.time")
+
+  # Example relationships:
+  # challenges_on_challenger
+  # challenges_on_challenged
+  # friendships_on_user
+}
+
+# Example data model for "Game"
+type Game @table {
+  id: UUID! @default(expr: "uuidV4()")
+  status: String! # ongoing, completed
+  gameType: String! # solo or multiplayer
+  startTime: Date! @default(expr: "request.time")
+  endTime: Date
+}
+
+# Potential linking table to associate multiple users in a Game
+type GameParticipant @table(key: ["game", "user"]) {
+  id: UUID! @default(expr: "uuidV4()")
+  user: User!
+  game: Game!
+  score: Int
+  # Additional fields for timeJoined, countriesGuessed, etc.
+}
+
+# Another example if you want a "Challenge" type
+type Challenge @table {
+  id: UUID! @default(expr: "uuidV4()")
+  challenger: User!
+  challenged: User!
+  status: String! # pending, accepted, canceled, missed
+  createdAt: Date! @default(expr: "request.time")
+  # You might also store the gameId here when a challenge is accepted
+}
+
+# Example "Friendship" relationship
+type Friendship @table(key: ["userId1", "userId2"]) {
+  userId1: String!
+  userId2: String!
+  status: String # e.g., accepted, pending
+  # This could also be done in the user table or in Firestore
+}

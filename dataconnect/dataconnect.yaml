@@ -1,0 +1,12 @@
+specVersion: "v1beta"
+serviceId: "worldly-data-service"
+location: "us-east1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "worldly-data"
+      cloudSql:
+        instanceId: "worldly-backend"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]
