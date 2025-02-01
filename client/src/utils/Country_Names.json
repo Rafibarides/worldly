@@ -1,0 +1,728 @@
+[
+    {
+        "Country Name":"Zimbabwe"
+    },
+    {
+        "Country Name":"Zambia"
+    },
+    {
+        "Country Name":"Yemen"
+    },
+    {
+        "Country Name":"Vietnam"
+    },
+    {
+        "Country Name":"Venezuela"
+    },
+    {
+        "Country Name":"Vatican"
+    },
+    {
+        "Country Name":"Vanuatu"
+    },
+    {
+        "Country Name":"Uzbekistan"
+    },
+    {
+        "Country Name":"Uruguay"
+    },
+    {
+        "Country Name":"Micronesia"
+    },
+    {
+        "Country Name":"Marshall Is."
+    },
+    {
+        "Country Name":"N. Mariana Is."
+    },
+    {
+        "Country Name":"U.S. Virgin Is."
+    },
+    {
+        "Country Name":"Guam"
+    },
+    {
+        "Country Name":"American Samoa"
+    },
+    {
+        "Country Name":"Puerto Rico"
+    },
+    {
+        "Country Name":"United States of America"
+    },
+    {
+        "Country Name":"S. Geo. and the Is."
+    },
+    {
+        "Country Name":"Br. Indian Ocean Ter."
+    },
+    {
+        "Country Name":"Saint Helena"
+    },
+    {
+        "Country Name":"Pitcairn Is."
+    },
+    {
+        "Country Name":"Anguilla"
+    },
+    {
+        "Country Name":"Falkland Is."
+    },
+    {
+        "Country Name":"Cayman Is."
+    },
+    {
+        "Country Name":"Bermuda"
+    },
+    {
+        "Country Name":"British Virgin Is."
+    },
+    {
+        "Country Name":"Turks and Caicos Is."
+    },
+    {
+        "Country Name":"Montserrat"
+    },
+    {
+        "Country Name":"Jersey"
+    },
+    {
+        "Country Name":"Guernsey"
+    },
+    {
+        "Country Name":"Isle of Man"
+    },
+    {
+        "Country Name":"United Kingdom"
+    },
+    {
+        "Country Name":"United Arab Emirates"
+    },
+    {
+        "Country Name":"Ukraine"
+    },
+    {
+        "Country Name":"Uganda"
+    },
+    {
+        "Country Name":"Turkmenistan"
+    },
+    {
+        "Country Name":"Turkey"
+    },
+    {
+        "Country Name":"Tunisia"
+    },
+    {
+        "Country Name":"Trinidad and Tobago"
+    },
+    {
+        "Country Name":"Tonga"
+    },
+    {
+        "Country Name":"Togo"
+    },
+    {
+        "Country Name":"Timor-Leste"
+    },
+    {
+        "Country Name":"Thailand"
+    },
+    {
+        "Country Name":"Tanzania"
+    },
+    {
+        "Country Name":"Tajikistan"
+    },
+    {
+        "Country Name":"Taiwan"
+    },
+    {
+        "Country Name":"Syria"
+    },
+    {
+        "Country Name":"Switzerland"
+    },
+    {
+        "Country Name":"Sweden"
+    },
+    {
+        "Country Name":"eSwatini"
+    },
+    {
+        "Country Name":"Suriname"
+    },
+    {
+        "Country Name":"S. Sudan"
+    },
+    {
+        "Country Name":"Sudan"
+    },
+    {
+        "Country Name":"Sri Lanka"
+    },
+    {
+        "Country Name":"Spain"
+    },
+    {
+        "Country Name":"South Korea"
+    },
+    {
+        "Country Name":"South Africa"
+    },
+    {
+        "Country Name":"Somalia"
+    },
+    {
+        "Country Name":"Somaliland"
+    },
+    {
+        "Country Name":"Solomon Is."
+    },
+    {
+        "Country Name":"Slovakia"
+    },
+    {
+        "Country Name":"Slovenia"
+    },
+    {
+        "Country Name":"Singapore"
+    },
+    {
+        "Country Name":"Sierra Leone"
+    },
+    {
+        "Country Name":"Seychelles"
+    },
+    {
+        "Country Name":"Serbia"
+    },
+    {
+        "Country Name":"Senegal"
+    },
+    {
+        "Country Name":"Saudi Arabia"
+    },
+    {
+        "Country Name":"S\u00e3o Tom\u00e9 and Principe"
+    },
+    {
+        "Country Name":"San Marino"
+    },
+    {
+        "Country Name":"Samoa"
+    },
+    {
+        "Country Name":"St. Vin. and Gren."
+    },
+    {
+        "Country Name":"Saint Lucia"
+    },
+    {
+        "Country Name":"St. Kitts and Nevis"
+    },
+    {
+        "Country Name":"Rwanda"
+    },
+    {
+        "Country Name":"Russia"
+    },
+    {
+        "Country Name":"Romania"
+    },
+    {
+        "Country Name":"Qatar"
+    },
+    {
+        "Country Name":"Portugal"
+    },
+    {
+        "Country Name":"Poland"
+    },
+    {
+        "Country Name":"Philippines"
+    },
+    {
+        "Country Name":"Peru"
+    },
+    {
+        "Country Name":"Paraguay"
+    },
+    {
+        "Country Name":"Papua New Guinea"
+    },
+    {
+        "Country Name":"Panama"
+    },
+    {
+        "Country Name":"Palau"
+    },
+    {
+        "Country Name":"Pakistan"
+    },
+    {
+        "Country Name":"Oman"
+    },
+    {
+        "Country Name":"Norway"
+    },
+    {
+        "Country Name":"North Korea"
+    },
+    {
+        "Country Name":"Nigeria"
+    },
+    {
+        "Country Name":"Niger"
+    },
+    {
+        "Country Name":"Nicaragua"
+    },
+    {
+        "Country Name":"New Zealand"
+    },
+    {
+        "Country Name":"Niue"
+    },
+    {
+        "Country Name":"Cook Is."
+    },
+    {
+        "Country Name":"Netherlands"
+    },
+    {
+        "Country Name":"Aruba"
+    },
+    {
+        "Country Name":"Cura\u00e7ao"
+    },
+    {
+        "Country Name":"Nepal"
+    },
+    {
+        "Country Name":"Nauru"
+    },
+    {
+        "Country Name":"Namibia"
+    },
+    {
+        "Country Name":"Mozambique"
+    },
+    {
+        "Country Name":"Morocco"
+    },
+    {
+        "Country Name":"W. Sahara"
+    },
+    {
+        "Country Name":"Montenegro"
+    },
+    {
+        "Country Name":"Mongolia"
+    },
+    {
+        "Country Name":"Moldova"
+    },
+    {
+        "Country Name":"Monaco"
+    },
+    {
+        "Country Name":"Mexico"
+    },
+    {
+        "Country Name":"Mauritius"
+    },
+    {
+        "Country Name":"Mauritania"
+    },
+    {
+        "Country Name":"Malta"
+    },
+    {
+        "Country Name":"Mali"
+    },
+    {
+        "Country Name":"Maldives"
+    },
+    {
+        "Country Name":"Malaysia"
+    },
+    {
+        "Country Name":"Malawi"
+    },
+    {
+        "Country Name":"Madagascar"
+    },
+    {
+        "Country Name":"North Macedonia"
+    },
+    {
+        "Country Name":"Luxembourg"
+    },
+    {
+        "Country Name":"Lithuania"
+    },
+    {
+        "Country Name":"Liechtenstein"
+    },
+    {
+        "Country Name":"Libya"
+    },
+    {
+        "Country Name":"Liberia"
+    },
+    {
+        "Country Name":"Lesotho"
+    },
+    {
+        "Country Name":"Lebanon"
+    },
+    {
+        "Country Name":"Latvia"
+    },
+    {
+        "Country Name":"Laos"
+    },
+    {
+        "Country Name":"Kyrgyzstan"
+    },
+    {
+        "Country Name":"Kuwait"
+    },
+    {
+        "Country Name":"Kosovo"
+    },
+    {
+        "Country Name":"Kiribati"
+    },
+    {
+        "Country Name":"Kenya"
+    },
+    {
+        "Country Name":"Kazakhstan"
+    },
+    {
+        "Country Name":"Jordan"
+    },
+    {
+        "Country Name":"Japan"
+    },
+    {
+        "Country Name":"Jamaica"
+    },
+    {
+        "Country Name":"Italy"
+    },
+    {
+        "Country Name":"Israel"
+    },
+    {
+        "Country Name":"Palestine"
+    },
+    {
+        "Country Name":"Ireland"
+    },
+    {
+        "Country Name":"Iraq"
+    },
+    {
+        "Country Name":"Iran"
+    },
+    {
+        "Country Name":"Indonesia"
+    },
+    {
+        "Country Name":"India"
+    },
+    {
+        "Country Name":"Iceland"
+    },
+    {
+        "Country Name":"Hungary"
+    },
+    {
+        "Country Name":"Honduras"
+    },
+    {
+        "Country Name":"Haiti"
+    },
+    {
+        "Country Name":"Guyana"
+    },
+    {
+        "Country Name":"Guinea-Bissau"
+    },
+    {
+        "Country Name":"Guinea"
+    },
+    {
+        "Country Name":"Guatemala"
+    },
+    {
+        "Country Name":"Grenada"
+    },
+    {
+        "Country Name":"Greece"
+    },
+    {
+        "Country Name":"Ghana"
+    },
+    {
+        "Country Name":"Germany"
+    },
+    {
+        "Country Name":"Georgia"
+    },
+    {
+        "Country Name":"Gambia"
+    },
+    {
+        "Country Name":"Gabon"
+    },
+    {
+        "Country Name":"France"
+    },
+    {
+        "Country Name":"St. Pierre and Miquelon"
+    },
+    {
+        "Country Name":"Wallis and Futuna Is."
+    },
+    {
+        "Country Name":"St-Martin"
+    },
+    {
+        "Country Name":"St-Barth\u00e9lemy"
+    },
+    {
+        "Country Name":"Fr. Polynesia"
+    },
+    {
+        "Country Name":"New Caledonia"
+    },
+    {
+        "Country Name":"Fr. S. Antarctic Lands"
+    },
+    {
+        "Country Name":"\u00c5land"
+    },
+    {
+        "Country Name":"Finland"
+    },
+    {
+        "Country Name":"Fiji"
+    },
+    {
+        "Country Name":"Ethiopia"
+    },
+    {
+        "Country Name":"Estonia"
+    },
+    {
+        "Country Name":"Eritrea"
+    },
+    {
+        "Country Name":"Eq. Guinea"
+    },
+    {
+        "Country Name":"El Salvador"
+    },
+    {
+        "Country Name":"Egypt"
+    },
+    {
+        "Country Name":"Ecuador"
+    },
+    {
+        "Country Name":"Dominican Rep."
+    },
+    {
+        "Country Name":"Dominica"
+    },
+    {
+        "Country Name":"Djibouti"
+    },
+    {
+        "Country Name":"Greenland"
+    },
+    {
+        "Country Name":"Faeroe Is."
+    },
+    {
+        "Country Name":"Denmark"
+    },
+    {
+        "Country Name":"Czechia"
+    },
+    {
+        "Country Name":"N. Cyprus"
+    },
+    {
+        "Country Name":"Cyprus"
+    },
+    {
+        "Country Name":"Cuba"
+    },
+    {
+        "Country Name":"Croatia"
+    },
+    {
+        "Country Name":"C\u00f4te d'Ivoire"
+    },
+    {
+        "Country Name":"Costa Rica"
+    },
+    {
+        "Country Name":"Dem. Rep. Congo"
+    },
+    {
+        "Country Name":"Congo"
+    },
+    {
+        "Country Name":"Comoros"
+    },
+    {
+        "Country Name":"Colombia"
+    },
+    {
+        "Country Name":"China"
+    },
+    {
+        "Country Name":"Macao"
+    },
+    {
+        "Country Name":"Hong Kong"
+    },
+    {
+        "Country Name":"Chile"
+    },
+    {
+        "Country Name":"Chad"
+    },
+    {
+        "Country Name":"Central African Rep."
+    },
+    {
+        "Country Name":"Cabo Verde"
+    },
+    {
+        "Country Name":"Canada"
+    },
+    {
+        "Country Name":"Cameroon"
+    },
+    {
+        "Country Name":"Cambodia"
+    },
+    {
+        "Country Name":"Myanmar"
+    },
+    {
+        "Country Name":"Burundi"
+    },
+    {
+        "Country Name":"Burkina Faso"
+    },
+    {
+        "Country Name":"Bulgaria"
+    },
+    {
+        "Country Name":"Brunei"
+    },
+    {
+        "Country Name":"Brazil"
+    },
+    {
+        "Country Name":"Botswana"
+    },
+    {
+        "Country Name":"Bosnia and Herz."
+    },
+    {
+        "Country Name":"Bolivia"
+    },
+    {
+        "Country Name":"Bhutan"
+    },
+    {
+        "Country Name":"Benin"
+    },
+    {
+        "Country Name":"Belize"
+    },
+    {
+        "Country Name":"Belgium"
+    },
+    {
+        "Country Name":"Belarus"
+    },
+    {
+        "Country Name":"Barbados"
+    },
+    {
+        "Country Name":"Bangladesh"
+    },
+    {
+        "Country Name":"Bahrain"
+    },
+    {
+        "Country Name":"Bahamas"
+    },
+    {
+        "Country Name":"Azerbaijan"
+    },
+    {
+        "Country Name":"Austria"
+    },
+    {
+        "Country Name":"Australia"
+    },
+    {
+        "Country Name":"Indian Ocean Ter."
+    },
+    {
+        "Country Name":"Heard I. and McDonald Is."
+    },
+    {
+        "Country Name":"Norfolk Island"
+    },
+    {
+        "Country Name":"Ashmore and Cartier Is."
+    },
+    {
+        "Country Name":"Armenia"
+    },
+    {
+        "Country Name":"Argentina"
+    },
+    {
+        "Country Name":"Antigua and Barb."
+    },
+    {
+        "Country Name":"Angola"
+    },
+    {
+        "Country Name":"Andorra"
+    },
+    {
+        "Country Name":"Algeria"
+    },
+    {
+        "Country Name":"Albania"
+    },
+    {
+        "Country Name":"Afghanistan"
+    },
+    {
+        "Country Name":"Siachen Glacier"
+    },
+    {
+        "Country Name":"Antarctica"
+    },
+    {
+        "Country Name":"Sint Maarten"
+    },
+    {
+        "Country Name":"Tuvalu"
+    }
+]

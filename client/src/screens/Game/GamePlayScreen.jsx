@@ -21,7 +21,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import MapView from '../../components/MapView';
-import { mockCountries, mockGameSettings } from '../../utils/mockData';
+import worldData from '../../../assets/geojson/ne_50m_admin_0_countries.json';
+import { feature } from 'topojson-client';
+import { normalizeCountryName, getTerritoriesForCountry, getTerritoryMatch } from '../../utils/countryHelpers';
+
+let geoJSON;
+if (worldData.type === 'Topology') {
+  geoJSON = feature(worldData, worldData.objects.ne_50m_admin_0_countries);
+} else {
+  geoJSON = worldData;
+}
+const filteredWorldData = {
+  ...geoJSON,
+  features: geoJSON.features.filter(
+    (feat) => feat.properties && feat.properties.NAME !== 'Antarctica'
+  ),
+};
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
@@ -55,18 +70,45 @@ export default function GamePlayScreen({ route, navigation }) {
     backgroundColor: '#f5f5f5'
   };
 
-  const handleGuess = () => {
-    const normalizedGuess = guess.trim().toLowerCase();
-    const isCorrect = mockCountries.some(
-      country => country.name.toLowerCase() === normalizedGuess
-    );
-    const alreadyGuessed = guessedCountries.includes(normalizedGuess);
+  const handleTextChange = (text) => {
+    setGuess(text);
+    
+    if (text.trim()) {
+      const normalizedGuess = normalizeCountryName(text);
+      
+      // Find the matched country - case insensitive matching
+      const matchedFeature = filteredWorldData.features.find(
+        (feat) => {
+          const featureName = feat.properties.NAME;
+          return featureName === normalizedGuess || 
+                 featureName.toLowerCase() === normalizedGuess.toLowerCase();
+        }
+      );
 
-    if (isCorrect && !alreadyGuessed) {
-      setScore(prev => prev + mockGameSettings.pointsPerCorrectGuess);
-      setGuessedCountries(prev => [...prev, normalizedGuess]);
+      if (matchedFeature) {
+        const countryName = matchedFeature.properties.NAME;
+        const normalizedCountryName = countryName.toLowerCase();
+        const alreadyGuessed = guessedCountries.includes(normalizedCountryName);
+
+        if (!alreadyGuessed) {
+          // Get territories for this country
+          const territories = getTerritoriesForCountry(normalizedCountryName);
+          
+          // Add both the country and its territories to guessed countries
+          setGuessedCountries(prev => [...prev, normalizedCountryName, ...territories]);
+          setScore(prev => prev + 10);
+          setGuess('');
+        }
+      } else {
+        // Check if it's a territory
+        const sovereignCountry = getTerritoryMatch(normalizedGuess);
+        if (sovereignCountry && !guessedCountries.includes(sovereignCountry)) {
+          // If it's a territory and its sovereign country hasn't been guessed,
+          // we don't count it as a correct guess
+          console.log('Territory found but sovereign country not guessed yet:', sovereignCountry);
+        }
+      }
     }
-    setGuess('');
   };
 
   const handleGameEnd = () => {
@@ -123,7 +165,7 @@ export default function GamePlayScreen({ route, navigation }) {
       <AnimatedView 
         style={[{ flex: 1 }, mapContainerStyle]}
       >
-        <MapView />
+        <MapView guessedCountries={guessedCountries} />
       </AnimatedView>
 
       {/* Input Section */}
@@ -132,16 +174,9 @@ export default function GamePlayScreen({ route, navigation }) {
           style={styles.input}
           placeholder="Enter country name..."
           value={guess}
-          onChangeText={setGuess}
-          onSubmitEditing={handleGuess}
+          onChangeText={handleTextChange}
           autoCapitalize="none"
         />
-        <TouchableOpacity 
-          style={styles.submitButton}
-          onPress={handleGuess}
-        >
-          <Text style={styles.submitButtonText}>Guess</Text>
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -191,16 +226,6 @@ const styles = StyleSheet.create({
     padding: 15,
     fontSize: 16,
     backgroundColor: '#f5f5f5',
-  },
-  submitButton: {
-    backgroundColor: 'rgba(177, 216, 138, 1)',
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    justifyContent: 'center',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   exitButton: {
     position: 'absolute',

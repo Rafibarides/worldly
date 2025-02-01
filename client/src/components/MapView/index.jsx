@@ -23,7 +23,7 @@ const filteredWorldData = {
   ),
 };
 
-export default function MapView() {
+export default function MapView({ guessedCountries = [] }) {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [containerHeight, setContainerHeight] = useState(0);
 
@@ -70,15 +70,23 @@ export default function MapView() {
           height={containerHeight}
           preserveAspectRatio="xMidYMid meet"
         >
-          {countryPaths.map((d, index) => (
-            <Path
-              key={`country-${index}`}
-              d={d}
-              fill="#FFF9C4"  // switched to a soft pastel yellow
-              stroke="#000"
-              strokeWidth={1}
-            />
-          ))}
+          {countryPaths.map((d, index) => {
+            // Find the feature name from the path
+            const featureName = filteredWorldData.features[index].properties.NAME.toLowerCase();
+            // If it's guessed, fill with #4bd670; else pastel yellow
+            const fillColor = guessedCountries.includes(featureName)
+              ? '#4bd670'
+              : '#FFF9C4';
+            return (
+              <Path
+                key={`country-${index}`}
+                d={d}
+                fill={fillColor}
+                stroke="#000"
+                strokeWidth={1}
+              />
+            );
+          })}
         </Svg>
       </ScrollView>
     </View>
