@@ -1,16 +1,31 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, Dimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { geoPath, geoEquirectangular } from 'd3-geo';
+import { geoPath, geoNaturalEarth1 } from 'd3-geo';
+import { feature } from 'topojson-client';
 import worldData from '../../../assets/geojson/ne_50m_admin_0_countries.json';
+
+// 1) Handle both GeoJSON and TopoJSON by checking .type
+let geoJSON;
+if (worldData.type === 'Topology') {
+  // File is TopoJSON
+  geoJSON = feature(worldData, worldData.objects.ne_50m_admin_0_countries);
+} else {
+  // File is already normal GeoJSON
+  geoJSON = worldData;
+}
+
+// 2) Filter out Antarctica if necessary
+const filteredWorldData = {
+  ...geoJSON,
+  features: geoJSON.features.filter(
+    (feat) => feat.properties && feat.properties.NAME !== 'Antarctica'
+  ),
+};
 
 export default function MapView() {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [containerHeight, setContainerHeight] = useState(0);
-
-  // Create our projection & path generator
-  const projection = geoEquirectangular();
-  const pathGenerator = geoPath().projection(projection);
 
   // Handle layout to measure container height
   const onContainerLayout = useCallback((e) => {
@@ -24,19 +39,20 @@ export default function MapView() {
   // Memoize the generated paths to avoid recalculating on every render
   const countryPaths = useMemo(() => {
     if (containerHeight > 0) {
-      // First fit the projection to our container size
-      projection.fitSize([mapWidth, containerHeight], worldData);
-      
-      // Scale up by 2%
-      const currentScale = projection.scale();
-      projection.scale(currentScale * 1.01);
-      
-      // Recenter after scaling
-      projection.translate([mapWidth / 2, containerHeight / 2]);
+      // Use geoNaturalEarth1 to avoid huge shapes crossing ±180° longitude
+      const projection = geoNaturalEarth1();
+
+      // Scale/translate to fit [mapWidth, containerHeight]
+      projection.fitSize([mapWidth, containerHeight], filteredWorldData);
+
+      // Create path generator from the new projection
+      const pathGenerator = geoPath().projection(projection);
+
+      // Return path strings for all filtered countries
+      return filteredWorldData.features.map((feat) => pathGenerator(feat));
     }
-    // Return an array of path strings for all countries
-    return worldData.features.map((feature) => pathGenerator(feature));
-  }, [containerHeight, projection, pathGenerator, mapWidth]);
+    return [];
+  }, [containerHeight, mapWidth]);
 
   return (
     <View style={{ flex: 1 }} onLayout={onContainerLayout}>
@@ -58,9 +74,9 @@ export default function MapView() {
             <Path
               key={`country-${index}`}
               d={d}
-              fill="none"
+              fill="#FFF9C4"  // switched to a soft pastel yellow
               stroke="#000"
-              strokeWidth="0.5"
+              strokeWidth={1}
             />
           ))}
         </Svg>
