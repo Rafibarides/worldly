@@ -634,4 +634,18 @@ This UI styling has a clean and playful aesthetic with the following notable cha
 
 This UI is perfect for a fun, interactive app (e.g., game companion or character selection screen) and leverages modern design principles.
 
+**Map Implementations**
+
+We will use Natural Earth's (1:50m Admin 0 Countries for example) GeoJSON data to render a blank, border-only world map. The map will have a soft yellow fill and black borders by default, and correctly guessed countries will update to green. This solution uses `react-native-svg` for rendering and `d3-geo` for the geographic projection.
+
+### Steps to Implement
+
+1. **Download GeoJSON Data:**  
+   - Download the [Natural Earth 1:50m Admin 0 Countries GeoJSON](https://www.naturalearthdata.com/downloads/50m-cultural-vectors/) file and save it as:  
+     `client/assets/geojson/ne_50m_admin_0_countries.json`
+
+2. **Install Dependencies:**  
+   npm install react-native-svg d3-geo
+
+
 **That’s the full technical roadmap.** Hand this document to the dev team for a clear blueprint of how to implement and launch Worldly. 

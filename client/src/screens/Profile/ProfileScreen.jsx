@@ -1,13 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockUsers, mockBadges } from '../../utils/mockData';
 
-// For development, we'll use the first mock user
-const currentUser = mockUsers[0];
+export default function ProfileScreen({ route }) {
+  const { userId } = route.params;
+  const user = mockUsers.find(u => u.id === userId);
 
-export default function HomeScreen({ navigation }) {
   const renderBadges = () => {
-    return currentUser.badges.map((badgeId) => {
+    return user.badges.map((badgeId) => {
       const badge = mockBadges.find(b => b.id === badgeId);
       return (
         <View key={badgeId} style={styles.badge}>
@@ -22,31 +22,23 @@ export default function HomeScreen({ navigation }) {
     <ScrollView style={styles.container}>
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity 
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('ProfileSettings')}
-          >
-            <MaterialIcons name="settings" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatar}>🌍</Text>
-          <Text style={styles.username}>{currentUser.username}</Text>
+          <Text style={styles.username}>{user.username}</Text>
         </View>
         
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.gamesPlayed}</Text>
+            <Text style={styles.statNumber}>{user.stats.gamesPlayed}</Text>
             <Text style={styles.statLabel}>Games Played</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.gamesWon}</Text>
+            <Text style={styles.statNumber}>{user.stats.gamesWon}</Text>
             <Text style={styles.statLabel}>Wins</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.totalCountriesGuessed}</Text>
+            <Text style={styles.statNumber}>{user.stats.totalCountriesGuessed}</Text>
             <Text style={styles.statLabel}>Countries</Text>
           </View>
         </View>
@@ -59,15 +51,6 @@ export default function HomeScreen({ navigation }) {
           {renderBadges()}
         </View>
       </View>
-
-      {/* Challenge Button */}
-      <TouchableOpacity 
-        style={styles.challengeButton}
-        onPress={() => navigation.navigate('Game')}
-      >
-        <MaterialIcons name="flag" size={24} color="white" />
-        <Text style={styles.challengeButtonText}>Start New Game</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -81,19 +64,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(242, 205, 215, 0.3)', // Using theme color with opacity
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    width: '100%',
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  settingsButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(242, 174, 199, 0.1)', // Theme color with opacity
+    borderBottomColor: 'rgba(242, 205, 215, 0.3)',
   },
   avatarContainer: {
     alignItems: 'center',
@@ -115,7 +86,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   statCard: {
-    backgroundColor: 'rgba(177, 216, 138, 0.1)', // Theme color with opacity
+    backgroundColor: 'rgba(177, 216, 138, 0.1)',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -124,7 +95,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'rgba(177, 216, 138, 1)', // Theme color
+    color: 'rgba(177, 216, 138, 1)',
   },
   statLabel: {
     fontSize: 12,
@@ -146,7 +117,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   badge: {
-    backgroundColor: 'rgba(242, 174, 199, 0.1)', // Theme color with opacity
+    backgroundColor: 'rgba(242, 174, 199, 0.1)',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',
@@ -160,20 +131,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     color: '#666',
-  },
-  challengeButton: {
-    backgroundColor: 'rgba(177, 216, 138, 1)', // Theme color
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 25,
-    margin: 20,
-    gap: 10,
-  },
-  challengeButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
 }); 
