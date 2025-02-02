@@ -142,21 +142,19 @@ export default function GameScreen({ navigation }) {
         {/* Game Settings Info */}
         <View style={styles.settingsInfo}>
           <Text style={styles.settingsTitle}>Game Settings</Text>
-          <View style={styles.settingItem}>
-            <View style={styles.settingIcon}>
+          <View style={styles.settingCardsContainer}>
+            <View style={styles.settingCard}>
               <MaterialIcons name="timer" size={20} color="#fff" />
+              <Text style={styles.settingCardText}>
+                Time Limit: {mockGameSettings.timeLimit / 60} min
+              </Text>
             </View>
-            <Text style={styles.settingText}>
-              Time Limit: {mockGameSettings.timeLimit / 60} minutes
-            </Text>
-          </View>
-          <View style={styles.settingItem}>
-            <View style={styles.settingIcon}>
+            <View style={styles.settingCard}>
               <MaterialIcons name="emoji-events" size={20} color="#fff" />
+              <Text style={styles.settingCardText}>
+                Points: {mockGameSettings.pointsPerCorrectGuess}
+              </Text>
             </View>
-            <Text style={styles.settingText}>
-              Points per correct guess: {mockGameSettings.pointsPerCorrectGuess}
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -211,6 +209,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginVertical: 10,
     paddingHorizontal: 20,
+    shadowColor: '#d2d2d2',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
   },
   optionContent: {
     flexDirection: 'row',
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   },
   settingsInfo: {
     padding: 20,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     width: '90%',
   },
   settingsTitle: {
@@ -242,21 +245,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 15,
+    textAlign: 'left',
   },
-  settingItem: {
+  settingCardsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 10,
   },
-  settingIcon: {
-    width: 30,
+  settingCard: {
+    backgroundColor: '#87c66b',
+    borderRadius: 10,
+    padding: 10,
+    height: 100,
+    width: 100,
+    flex: 1,
     alignItems: 'center',
+    marginHorizontal: 5,
+    justifyContent: 'center',
+    margin: 10,
   },
-  settingText: {
-    marginLeft: 10,
+  settingCardText: {
     color: '#fff',
     fontSize: 14,
-    flex: 1,
+    textAlign: 'center',
+    marginTop: 5,
   },
 }); 
