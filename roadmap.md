@@ -636,5 +636,7 @@ This UI is perfect for a fun, interactive app (e.g., game companion or character
 
 **Map Implementations**
 
+client/src/utils/Country_Names.json is the file that contains the country names that are used in the game, that the GeoJSON file is mapped to, and therefore expecting.
+
 
 **That’s the full technical roadmap.** Hand this document to the dev team for a clear blueprint of how to implement and launch Worldly. 

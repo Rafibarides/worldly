@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -17,13 +17,16 @@ import Animated, {
   withSpring,
   runOnJS,
   Easing,
-  Layout
+  Layout,
+  withSequence,
+  withDelay
 } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import MapView from '../../components/MapView';
 import worldData from '../../../assets/geojson/ne_50m_admin_0_countries.json';
 import { feature } from 'topojson-client';
 import { normalizeCountryName, getTerritoriesForCountry, getTerritoryMatch } from '../../utils/countryHelpers';
+import recognizedCountries from '../../utils/recognized_countries.json';
 
 let geoJSON;
 if (worldData.type === 'Topology') {
@@ -38,22 +41,65 @@ const filteredWorldData = {
   ),
 };
 
+// Insert this block to add South Sudan if it's missing in the geoJSON
+if (!filteredWorldData.features.some(feat => feat.properties.NAME.toLowerCase() === 's. sudan')) {
+  filteredWorldData.features.push({
+    type: "Feature",
+    properties: {
+      NAME: "S. Sudan"
+    },
+    geometry: {
+      type: "Polygon",
+      // Note: These coordinates are a placeholder.
+      // Replace with accurate coordinates for South Sudan if available.
+      coordinates: [[
+        [32.0, 4.0],
+        [35.0, 4.0],
+        [35.0, 11.0],
+        [32.0, 11.0],
+        [32.0, 4.0]
+      ]]
+    }
+  });
+}
+
 const AnimatedView = Animated.createAnimatedComponent(View);
+const AnimatedText = Animated.createAnimatedComponent(Text);
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, settings } = route.params;
-  const [timeLeft, setTimeLeft] = useState(settings.timeLimit);
+
+  // Temporarily override to 30 seconds for testing:
+  const [timeLeft, setTimeLeft] = useState(30);  
+
   const [guess, setGuess] = useState('');
   const [score, setScore] = useState(0);
   const [guessedCountries, setGuessedCountries] = useState([]);
+  const guessedCountriesRef = useRef(guessedCountries);
+  useEffect(() => {
+    guessedCountriesRef.current = guessedCountries;
+  }, [guessedCountries]);
+  
+  // Create a ref for the score so we always have the latest value
+  const scoreRef = useRef(score);
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
 
-  // Timer logic
+  const scoreScale = useSharedValue(1);
+  const inputShake = useSharedValue(0);
+  const toastOpacity = useSharedValue(0);
+  const toastTranslate = useSharedValue(0);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleGameEnd();
+          setTimeout(() => {
+            handleGameEnd();
+          }, 0);
           return 0;
         }
         return prev - 1;
@@ -67,7 +113,59 @@ export default function GamePlayScreen({ route, navigation }) {
     flex: 1,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#49b3f5'
+  };
+
+  const animateScore = () => {
+    scoreScale.value = withSequence(
+      withSpring(1.2, { damping: 2, stiffness: 80 }),
+      withSpring(1, { damping: 2, stiffness: 80 })
+    );
+  };
+
+  const scoreAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scoreScale.value }]
+    };
+  });
+
+  const shakeInput = () => {
+    inputShake.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 100 }),
+      withTiming(-10, { duration: 100 }),
+      withTiming(10, { duration: 100 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
+
+  const inputAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: inputShake.value }]
+    };
+  });
+
+  const toastAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: toastOpacity.value,
+      transform: [{ translateY: toastTranslate.value }]
+    };
+  });
+
+  const showToast = () => {
+    toastOpacity.value = 0;
+    toastTranslate.value = 0;
+    
+    toastOpacity.value = withSequence(
+      withSpring(1, { damping: 12, stiffness: 100 }),
+      withDelay(500, withSpring(0, { damping: 12, stiffness: 100 }))
+    );
+    
+    toastTranslate.value = withSpring(-50, {
+      damping: 12,
+      stiffness: 80,
+      mass: 0.5
+    });
   };
 
   const handleTextChange = (text) => {
@@ -76,7 +174,6 @@ export default function GamePlayScreen({ route, navigation }) {
     if (text.trim()) {
       const normalizedGuess = normalizeCountryName(text);
       
-      // Find the matched country - case insensitive matching
       const matchedFeature = filteredWorldData.features.find(
         (feat) => {
           const featureName = feat.properties.NAME;
@@ -87,36 +184,58 @@ export default function GamePlayScreen({ route, navigation }) {
 
       if (matchedFeature) {
         const countryName = matchedFeature.properties.NAME;
-        const normalizedCountryName = countryName.toLowerCase();
+        const normalizedCountryName = normalizeCountryName(countryName);
         const alreadyGuessed = guessedCountries.includes(normalizedCountryName);
 
         if (!alreadyGuessed) {
-          // Get territories for this country
           const territories = getTerritoriesForCountry(normalizedCountryName);
           
-          // Add both the country and its territories to guessed countries
           setGuessedCountries(prev => [...prev, normalizedCountryName, ...territories]);
-          setScore(prev => prev + 10);
+          
+          const isRecognized = recognizedCountries.recognized_countries.some(recCountry =>
+            normalizeCountryName(recCountry) === normalizedGuess
+          );
+          if (isRecognized) {
+            setScore(prev => prev + 1);
+            animateScore();
+          }
+          
           setGuess('');
+        } else {
+          shakeInput();
+          showToast();
         }
       } else {
-        // Check if it's a territory
-        const sovereignCountry = getTerritoryMatch(normalizedGuess);
-        if (sovereignCountry && !guessedCountries.includes(sovereignCountry)) {
-          // If it's a territory and its sovereign country hasn't been guessed,
-          // we don't count it as a correct guess
-          console.log('Territory found but sovereign country not guessed yet:', sovereignCountry);
+        // If no matched feature is found, check if the country is recognized on its own.
+        const isRecognized = recognizedCountries.recognized_countries.some(recCountry =>
+          normalizeCountryName(recCountry) === normalizedGuess
+        );
+        if (isRecognized && !guessedCountries.includes(normalizedGuess)) {
+          // Even without a map feature, treat this recognized country as a valid guess.
+          setGuessedCountries(prev => [...prev, normalizedGuess]);
+          setScore(prev => prev + 1);
+          animateScore();
+          setGuess('');
+        } else {
+          const sovereignCountry = getTerritoryMatch(normalizedGuess);
+          if (sovereignCountry && !guessedCountries.includes(sovereignCountry)) {
+            console.log('Territory found but sovereign country not guessed yet:', sovereignCountry);
+          }
         }
       }
     }
   };
 
   const handleGameEnd = () => {
-    navigation.replace('GameSummary', {
-      score,
-      guessedCountries,
-      gameType
-    });
+    if (gameType === 'solo') {
+      navigation.replace('GameSummary', {
+        finalScore: scoreRef.current,
+        totalCountries: recognizedCountries.recognized_countries.length,
+        guessedCountries: guessedCountriesRef.current,
+      });
+    } else {
+      console.log('Multiplayer end game logic goes here.');
+    }
   };
 
   const formatTime = (seconds) => {
@@ -131,7 +250,6 @@ export default function GamePlayScreen({ route, navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      {/* Exit Button */}
       <TouchableOpacity 
         style={styles.exitButton}
         onPress={() => {
@@ -152,26 +270,29 @@ export default function GamePlayScreen({ route, navigation }) {
         <MaterialIcons name="arrow-back-ios" size={24} color="#666" />
       </TouchableOpacity>
 
-      {/* Timer and Score */}
       <View style={styles.header}>
         <View style={styles.timerContainer}>
           <MaterialIcons name="timer" size={24} color="#666" />
           <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
         </View>
-        <Text style={styles.score}>Score: {score}</Text>
+        <AnimatedText style={[styles.score, scoreAnimatedStyle]}>
+          {score}/196
+        </AnimatedText>
       </View>
 
-      {/* Animated Map Container */}
+      <Animated.View style={[styles.toastWrapper, toastAnimatedStyle]}>
+        <Text style={styles.toastText}>- Already Guessed</Text>
+      </Animated.View>
+
       <AnimatedView 
         style={[{ flex: 1 }, mapContainerStyle]}
       >
         <MapView guessedCountries={guessedCountries} />
       </AnimatedView>
 
-      {/* Input Section */}
       <View style={styles.inputSection}>
-        <TextInput
-          style={styles.input}
+        <AnimatedTextInput
+          style={[styles.input, inputAnimatedStyle]}
           placeholder="Enter country name..."
           value={guess}
           onChangeText={handleTextChange}
@@ -232,5 +353,20 @@ const styles = StyleSheet.create({
     top: 20,
     left: 20,
     padding: 10,
+  },
+  toastWrapper: {
+    position: 'absolute',
+    right: 30,
+    top: '45%',
+    zIndex: 1000,
+    backgroundColor: 'rgba(255, 196, 0, 0.9)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
   },
 }); 

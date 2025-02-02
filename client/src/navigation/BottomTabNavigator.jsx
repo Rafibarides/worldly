@@ -1,7 +1,14 @@
 // Will contain the bottom tab navigation setup 
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialIcons } from '@expo/vector-icons';
+import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming 
+} from 'react-native-reanimated';
 
 // Import screens
 import GameScreen from '../screens/Game/GameScreen';
@@ -118,28 +125,84 @@ function GameStackNavigator() {
   );
 }
 
+// NEW: Custom TabBar Component using Reanimated for the moving indicator
+function CustomTabBar({ state, descriptors, navigation }) {
+  const { width } = Dimensions.get('window');
+  const tabWidth = width / state.routes.length;
+  const indicatorWidth = 40; // Fixed width for indicator (same as icon box)
+  const indicatorHorizontalOffset = (tabWidth - indicatorWidth) / 2;
+
+  // Set up a shared value to track the indicator's horizontal translation.
+  const indicatorTranslateX = useSharedValue(state.index * tabWidth + indicatorHorizontalOffset);
+
+  // Whenever the active index changes, animate the indicator's translateX.
+  React.useEffect(() => {
+    indicatorTranslateX.value = withTiming(
+      state.index * tabWidth + indicatorHorizontalOffset,
+      { duration: 300 }
+    );
+  }, [state.index, tabWidth, indicatorHorizontalOffset]);
+
+  const animatedIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorTranslateX.value }],
+  }));
+
+  return (
+    <View style={styles.tabBarContainer}>
+      {/* Animated indicator behind icons */}
+      <Animated.View style={[styles.indicator, animatedIndicatorStyle]} />
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        let iconName;
+        switch (route.name) {
+          case 'Game':
+            iconName = 'public';
+            break;
+          case 'Search':
+            iconName = 'search';
+            break;
+          case 'Home':
+            iconName = 'home';
+            break;
+          case 'Friends':
+            iconName = 'people';
+            break;
+          case 'Logs':
+            iconName = 'history';
+            break;
+          default:
+            iconName = 'help-outline';
+        }
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            onPress={() => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name);
+              }
+            }}
+            style={styles.tabButton}
+          >
+            <MaterialIcons name={iconName} size={26} color="#fff" />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === 'Game') {
-            iconName = 'public';
-          } else if (route.name === 'Friends') {
-            iconName = 'people';
-          } else if (route.name === 'Search') {
-            iconName = 'search';
-          } else if (route.name === 'Home') {
-            iconName = 'home';
-          } else if (route.name === 'Logs') {
-            iconName = 'history';
-          }
-          return <MaterialIcons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: 'rgba(177, 216, 138, 1)',
-        tabBarInactiveTintColor: 'gray',
-      })}
+      // Use our custom tab bar component
+      tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tab.Screen 
         name="Game" 
@@ -149,11 +212,7 @@ export default function BottomTabNavigator() {
       <Tab.Screen
         name="Search"
         component={SearchStackNavigator}
-        options={{
-          tabBarIcon: ({ focused, color }) => (
-            <MaterialIcons name="search" size={24} color={color} />
-          ),
-        }}
+        options={{ headerShown: false }}
       />
       <Tab.Screen
         name="Home" 
@@ -168,12 +227,37 @@ export default function BottomTabNavigator() {
       <Tab.Screen
         name="Logs"
         component={LogsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="history" size={size} color={color} />
-          ),
-        }}
+        options={{ headerShown: false }}
       />
     </Tab.Navigator>
   );
-} 
+}
+
+// Add these styles at the bottom of the file
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#92c47b',
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    position: 'relative',
+    paddingBottom: 20,
+    
+    // marginBottom: 20,
+  },
+  indicator: {
+    position: 'absolute',
+    top: (60 - 40) / 2, // center vertically in tab bar (80 height, 40 indicator)
+    width: 40,
+    height: 40,
+    backgroundColor: '#add495',
+    borderRadius: 12,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1, // ensure buttons are above the indicator
+  },
+}); 

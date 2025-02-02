@@ -228,13 +228,13 @@ export const mockCountries = [
 
 // Game settings and constants
 export const mockGameSettings = {
-  timeLimit: 300, // 5 minutes in seconds
+  timeLimit: 30, // 5 minutes in seconds
   pointsPerCorrectGuess: 1,
   pointsPerIncorrectGuess: 0,
   minPlayersForMultiplayer: 2,
   maxPlayersForMultiplayer: 4,
   difficultyLevels: {
-    easy: { timeLimit: 420, hints: true },
+    easy: { timeLimit: 30, hints: true },
     medium: { timeLimit: 300, hints: true },
     hard: { timeLimit: 180, hints: false },
   },

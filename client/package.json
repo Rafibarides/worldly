@@ -28,7 +28,8 @@
     "react-native-safe-area-context": "^5.1.0",
     "react-native-screens": "^4.6.0",
     "react-native-svg": "^15.11.1",
-    "topojson-client": "^3.1.0"
+    "topojson-client": "^3.1.0",
+    "expo-linear-gradient": "~14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

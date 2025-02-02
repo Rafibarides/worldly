@@ -38,6 +38,7 @@ export const territoryMap = {
   'Norfolk Island': 'Australia',
   'Cocos Is.': 'Australia',
   'Heard I. and McDonald Is.': 'Australia',
+  'Somaliland': 'Somalia',
 };
 
 // Map of country variations to their official names
@@ -88,6 +89,8 @@ export const countryVariations = {
   'the gambia': 'gambia',
   'ussr': 'russia',
   'soviet union': 'russia',
+  'brasil': 'brazil',
+  'brazil': 'brazil',
   
   // Multi-word countries and special characters
   'south korea': 'south korea',
@@ -123,6 +126,11 @@ export const countryVariations = {
   'holy see': 'vatican city',
   'south sudan': 'south sudan',
   'equatorial guinea': 'equatorial guinea',
+  'luxembourg': 'luxembourg',
+  'luxemberg': 'luxembourg',
+  'luxemburg': 'luxembourg',
+  'morocco': 'morocco',
+  'tanzenia': 'tanzania',
 };
 
 // Map of country variations to their GeoJSON names
@@ -132,7 +140,7 @@ export const geoJSONNameMap = {
   'us': 'United States of America',
   'america': 'United States of America',
   'united states of america': 'United States of America',
-  'russia': 'Russian Federation',
+  'russia': 'Russia',
   'democratic republic of the congo': 'Dem. Rep. Congo',
   'republic of the congo': 'Congo',
   'czech republic': 'Czech Rep.',
@@ -140,8 +148,8 @@ export const geoJSONNameMap = {
   'central african republic': 'Central African Rep.',
   'dominican republic': 'Dominican Rep.',
   'united arab emirates': 'United Arab Emirates',
-  'south korea': 'Korea',
-  'north korea': 'Dem. Rep. Korea',
+  'south korea': 'South Korea',
+  'north korea': 'North Korea',
   'bosnia and herzegovina': 'Bosnia and Herz.',
   'antigua and barbuda': 'Antigua and Barb.',
   'trinidad and tobago': 'Trinidad and Tobago',
@@ -161,6 +169,12 @@ export const geoJSONNameMap = {
   'vatican city': 'Vatican',
   'holy see': 'Vatican',
   'denmark': 'Denmark',
+  'brasil': 'Brazil',
+  'luxemberg': 'Luxembourg',
+  'luxemburg': 'Luxembourg',
+  'morocco': 'Morocco',
+  'tanzenia': 'Tanzania',
+  'south sudan': 'S. Sudan',
 };
 
 // Helper function to normalize country names
@@ -175,13 +189,14 @@ export function normalizeCountryName(input) {
   
   // If we have a mapping, check if it needs GeoJSON conversion
   if (mappedName) {
-    return geoJSONNameMap[mappedName] || mappedName;
+    // Force the return value to lower-case
+    return (geoJSONNameMap[mappedName] || mappedName).toLowerCase();
   }
   
   // If no mapping found, check if the normalized input has a GeoJSON mapping
   const geoJSONName = geoJSONNameMap[normalized];
   if (geoJSONName) {
-    return geoJSONName;
+    return geoJSONName.toLowerCase();
   }
 
   // If still no match, try to find an exact match in Country_Names.json
@@ -190,19 +205,30 @@ export function normalizeCountryName(input) {
     country => country['Country Name'].toLowerCase() === normalized
   );
   
-  return exactMatch ? exactMatch['Country Name'] : normalized;
+  // Always return a lower-case result for consistency
+  return (exactMatch ? exactMatch['Country Name'] : normalized).toLowerCase();
 }
 
 // Helper function to get all territories for a country
 export function getTerritoriesForCountry(countryName) {
+  // For "Sudan" and "South Sudan", do not automatically add territories
+  const normalized = countryName.trim().toLowerCase();
+  if (normalized === "sudan" || normalized === "south sudan") {
+    return [];
+  }
+  
   return Object.entries(territoryMap)
-    .filter(([_, sovereign]) => sovereign.toLowerCase() === countryName.toLowerCase())
+    .filter(([_, sovereign]) => sovereign.toLowerCase() === normalized)
     // Convert each territory to lowercase for consistent matching later
     .map(([territory]) => territory.toLowerCase());
 }
 
 // Helper function to check if a guess matches any territory
 export function getTerritoryMatch(guess) {
-  const normalizedGuess = guess.trim();
+  const normalizedGuess = guess.trim().toLowerCase();
+  // Do not treat "sudan" or "south sudan" as a territory alias.
+  if (normalizedGuess === "sudan" || normalizedGuess === "south sudan") {
+    return undefined;
+  }
   return territoryMap[normalizedGuess];
 } 
