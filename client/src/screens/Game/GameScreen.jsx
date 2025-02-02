@@ -212,8 +212,8 @@ export default function GameScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 40,
+    paddingTop: 40,
+    paddingHorizontal: 20,
   },
   contentContainer: {
     flexGrow: 1,
@@ -231,8 +231,9 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   header: {
+    width: '100%',
     marginBottom: 30,
-    alignItems: 'center',
+    paddingLeft: 10,
   },
   title: {
     fontSize: 24,
@@ -321,26 +322,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#7dbc63',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderWidth: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 0,
     borderColor: '#ffffff',
     borderRadius: 50,
     shadowColor: '#000',
     shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0,
     shadowRadius: 6,
     elevation: 3,
     marginBottom: 20,
+    alignSelf: 'flex-start',
   },
   titleText: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
   },
   titleIcon: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     marginRight: 5,
   },
 }); 

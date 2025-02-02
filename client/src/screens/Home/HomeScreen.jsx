@@ -1,9 +1,14 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockUsers, mockBadges } from '../../utils/mockData';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated from 'react-native-reanimated';
 
 // For development, we'll use the first mock user
 const currentUser = mockUsers[0];
+
+// If not already defined, create an animated version of LinearGradient:
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function HomeScreen({ navigation }) {
   const renderBadges = () => {
@@ -19,7 +24,13 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <AnimatedLinearGradient 
+      colors={['#70ab51', '#7dbc63', '#70ab51']}
+      locations={[0, 0.5, 0.06]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.06, y: 0.5 }}
+      style={styles.container}
+    >
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <View style={styles.headerRow}>
@@ -54,21 +65,30 @@ export default function HomeScreen({ navigation }) {
 
       {/* Badges Section */}
       <View style={styles.badgesSection}>
-        <Text style={styles.sectionTitle}>Badges</Text>
-        <View style={styles.badgesContainer}>
-          {renderBadges()}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Badges</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('BadgesList')}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
         </View>
+        <ScrollView 
+          horizontal={true}
+          contentContainerStyle={styles.badgesContainer}
+          showsHorizontalScrollIndicator={false}
+        >
+          {renderBadges()}
+        </ScrollView>
       </View>
 
       {/* Challenge Button */}
-      <TouchableOpacity 
+      {/* <TouchableOpacity 
         style={styles.challengeButton}
         onPress={() => navigation.navigate('Game')}
       >
         <MaterialIcons name="flag" size={24} color="white" />
         <Text style={styles.challengeButtonText}>Start New Game</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      </TouchableOpacity> */}
+    </AnimatedLinearGradient>
   );
 }
 
@@ -80,8 +100,6 @@ const styles = StyleSheet.create({
   profileSection: {
     padding: 20,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(242, 205, 215, 0.3)', // Using theme color with opacity
   },
   headerRow: {
     flexDirection: 'row',
@@ -132,34 +150,47 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   badgesSection: {
-    padding: 20,
+    padding: 0,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 25,
+    marginBottom: 15,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    color: '#ffffff',
+  },
+  seeAllText: {
+    color: '#ffffff',
+    opacity: 0.9,
+    fontSize: 16,
   },
   badgesContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    paddingHorizontal: 10,
   },
   badge: {
-    backgroundColor: 'rgba(242, 174, 199, 0.1)', // Theme color with opacity
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: '#87c66b', // Updated background color
+    width: 120,                // Fixed width
+    height: 140,              // Fixed height (slightly taller)
+    borderRadius: 20,
     alignItems: 'center',
-    minWidth: 80,
+    justifyContent: 'center',  // Center children vertically
+    margin: 10,                // Optional margin for spacing
   },
   badgeIcon: {
     fontSize: 24,
     marginBottom: 5,
+    color: '#fff',      // Set icon text to white
   },
   badgeName: {
     fontSize: 12,
     textAlign: 'center',
-    color: '#666',
+    color: '#fff',       // Set badge name text to white
   },
   challengeButton: {
     backgroundColor: 'rgba(177, 216, 138, 1)', // Theme color

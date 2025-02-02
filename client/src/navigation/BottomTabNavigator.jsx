@@ -19,6 +19,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import FriendsListScreen from '../screens/Friends/FriendsListScreen';
 import AboutScreen from '../screens/About/AboutScreen'; // Using this as "Logs" for now
 import LogsScreen from '../screens/Logs/LogsScreen';
+import BadgesListScreen from '../screens/Badges/BadgesListScreen';
 
 // NEW import for the settings screen
 import ProfileSettingsScreen from '../screens/Settings/ProfileSettingsScreen';
@@ -32,12 +33,9 @@ const GameStack = createStackNavigator();
 
 function HomeStackNavigator() {
   return (
-    <HomeStack.Navigator>
-      <HomeStack.Screen 
-        name="HomeMain" 
-        component={HomeScreen}
-        options={{ headerShown: false }}
-      />
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeScreen" component={HomeScreen} />
+      <HomeStack.Screen name="BadgesList" component={BadgesListScreen} />
       <HomeStack.Screen 
         name="ProfileSettings" 
         component={ProfileSettingsScreen}

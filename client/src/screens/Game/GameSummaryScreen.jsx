@@ -7,7 +7,8 @@ import Animated, {
   withTiming, 
   withDelay,
   withSequence,
-  withSpring
+  withSpring,
+  withRepeat
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -119,18 +120,58 @@ export default function GameSummaryScreen() {
   const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   // AnimatedCard component for the continent cards.
-  const AnimatedCard = ({ children, delay }) => {
+  const AnimatedCard = ({ children, delay, isHighest, index, totalCards }) => {
     const cardOpacity = useSharedValue(0);
     const cardPressScale = useSharedValue(1);
+    const starsScale = useSharedValue(0);
+    // Added shared value for continuous bobbing
+    const starsBobbing = useSharedValue(0);
+
+    // Calculate background opacity based on position
+    // First card (index 0) will have opacity 1, last card will have opacity 0.15
+    const backgroundOpacity = 1 - (index * 0.60) / (totalCards - 1);
 
     useEffect(() => {
       cardOpacity.value = withDelay(delay, withTiming(1, { duration: 500 }));
+      
+      if (isHighest) {
+        starsScale.value = withDelay(delay + 200, withSequence(
+          withSpring(1.3, { 
+            damping: 4,
+            stiffness: 80,
+          }),
+          withSpring(1, {
+            damping: 6,
+            stiffness: 100,
+          })
+        ));
+        // Start continuous bobbing animation for the stars graphic
+        starsBobbing.value = withRepeat(
+          withSequence(
+            withTiming(-4, { duration: 800 }),
+            withTiming(0, { duration: 800 })
+          ),
+          -1,
+          true
+        );
+      }
     }, []);
 
     const cardAnimatedStyle = useAnimatedStyle(() => {
       return {
         opacity: cardOpacity.value,
         transform: [{ scale: cardOpacity.value * cardPressScale.value }]
+      };
+    });
+
+    // Updated starsAnimatedStyle to include the bobbing translation
+    const starsAnimatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [
+          { scale: starsScale.value },
+          { translateY: starsBobbing.value }
+        ],
+        opacity: starsScale.value,
       };
     });
 
@@ -143,8 +184,19 @@ export default function GameSummaryScreen() {
           );
         }}
       >
-        <Animated.View style={[styles.card, cardAnimatedStyle]}>
+        <Animated.View style={[
+          styles.card,
+          { backgroundColor: `rgba(135, 198, 107, ${backgroundOpacity})` },
+          isHighest && styles.highestCard,
+          cardAnimatedStyle
+        ]}>
           {children}
+          {isHighest && (
+            <Animated.Image 
+              source={require('../../../assets/images/stars.png')}
+              style={[styles.stars, starsAnimatedStyle]}
+            />
+          )}
         </Animated.View>
       </TouchableWithoutFeedback>
     );
@@ -195,6 +247,11 @@ export default function GameSummaryScreen() {
     };
   });
 
+  // Sort continents by percentage before rendering
+  const sortedContinents = Object.entries(continentPercentages)
+    .sort(([, percentageA], [, percentageB]) => percentageB - percentageA)
+    .map(([continent]) => continent);
+
   return (
     <AnimatedLinearGradient 
       colors={['#70ab51', '#7dbc63', '#70ab51']}
@@ -203,53 +260,61 @@ export default function GameSummaryScreen() {
       end={{ x: 0.06, y: 0.5 }}
       style={[styles.container, containerAnimatedStyle]}
     >
-      <View style={styles.titlePill}>
-        <Animated.Image 
-          source={require('../../../assets/images/medal.png')} 
-          style={[styles.medalIcon, medalAnimatedStyle]} 
-        />
-        <Text style={styles.titleText}>Game Review</Text>
-      </View>
-      <Text style={styles.scoreText}>
-        Total: {finalScore} / {totalCountries} countries
-      </Text>
-      {/* Cards Container for Continent Breakdown */}
-      <View style={styles.cardsContainer}>
-        {Object.keys(fixedContinentTotals).map((continent, index) => (
-          <AnimatedCard key={continent} delay={index * 100}>
-            <Text style={styles.cardTitle}>{continent}</Text>
-            <Text style={styles.cardPercentage}>
-              {continentPercentages[continent]}%
-            </Text>
-          </AnimatedCard>
-        ))}
-      </View>
-      {/* Animated Button for navigating back to game selection */}
-      <AnimatedTouchableOpacity
-        style={[styles.button, buttonAnimatedStyle]}
-        onPressIn={() => {
-          buttonPressScale.value = withSequence(
-            withTiming(1.2, { duration: 100 }),
-            withTiming(1, { duration: 100 })
-          );
-        }}
-        onPress={() =>
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Game' }],
-          })
-        }
-      >
-        <View style={styles.backButtonContent}>
-          <MaterialIcons 
-            name="arrow-back-ios" 
-            size={24} 
-            color="#ffc268" 
-            style={styles.buttonIcon} 
+      <View style={styles.contentContainer}>
+        <View style={styles.titlePill}>
+          <Animated.Image 
+            source={require('../../../assets/images/medal.png')} 
+            style={[styles.medalIcon, medalAnimatedStyle]} 
           />
-          <Text style={styles.buttonText}>Back to Game Selection</Text>
+          <Text style={styles.titleText}>Game Review</Text>
         </View>
-      </AnimatedTouchableOpacity>
+        <Text style={styles.scoreText}>
+          Total: {finalScore} / {totalCountries} countries
+        </Text>
+        {/* Cards Container for Continent Breakdown */}
+        <View style={styles.cardsContainer}>
+          {sortedContinents.map((continent, index) => (
+            <AnimatedCard 
+              key={continent} 
+              delay={index * 100}
+              isHighest={index === 0}
+              index={index}
+              totalCards={sortedContinents.length}
+            >
+              <Text style={styles.cardTitle}>{continent}</Text>
+              <Text style={styles.cardPercentage}>
+                {continentPercentages[continent]}%
+              </Text>
+            </AnimatedCard>
+          ))}
+        </View>
+        {/* Animated Button for navigating back to game selection */}
+        <AnimatedTouchableOpacity
+          style={[styles.button, buttonAnimatedStyle]}
+          onPressIn={() => {
+            buttonPressScale.value = withSequence(
+              withTiming(1.2, { duration: 100 }),
+              withTiming(1, { duration: 100 })
+            );
+          }}
+          onPress={() =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Game' }],
+            })
+          }
+        >
+          <View style={styles.backButtonContent}>
+            <MaterialIcons 
+              name="arrow-back-ios" 
+              size={24} 
+              color="#ffc268" 
+              style={styles.buttonIcon} 
+            />
+            <Text style={styles.buttonText}>Back to Game Selection</Text>
+          </View>
+        </AnimatedTouchableOpacity>
+      </View>
     </AnimatedLinearGradient>
   );
 }
@@ -257,40 +322,45 @@ export default function GameSummaryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 30,
+    padding: 20,
+  },
+  contentContainer: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center'
+    marginTop: -40,
   },
   titlePill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#7dbc63',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderWidth: 2,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderWidth: 0,
     borderColor: '#ffffff',
     borderRadius: 50,
-    shadowColor: '#000',
-    shadowOffset: { width: 1, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-    marginBottom: 20,
+    marginBottom: 5,
+    alignSelf: 'flex-start',
+    marginLeft: 10,
+    marginTop: 10,
   },
   titleText: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
   },
   medalIcon: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     marginRight: 5,
   },
   scoreText: {
-    fontSize: 20,
-    marginBottom: 20,
+    fontSize: 16,
+    marginBottom: 40,
     color: '#fff',
+    alignSelf: 'flex-start',
+    marginLeft: 10,
+    marginTop: 0,
   },
   // Updated styles for the continent cards for a 3-column layout:
   cardsContainer: {
@@ -301,13 +371,22 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   card: {
-    width: '30%', // Set each card's width so 3 cards fit per row
+    width: '30%',
     height: 100,
-    backgroundColor: '#87c66b', // Updated: solid background for percentage cards
-    marginBottom: 20, // Vertical spacing between rows
+    backgroundColor: '#87c66b',
+    marginBottom: 20,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  highestCard: {
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 1,
+    elevation: 8, // for Android
+    backgroundColor: '#8fcf6e', // slightly lighter green to complement the glow
   },
   cardTitle: {
     fontSize: 16,
@@ -347,5 +426,12 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     marginRight: 10,
+  },
+  stars: {
+    width: 32,
+    height: 32,
+    position: 'absolute',
+    top: -8,
+    right: -8,
   },
 }); 
