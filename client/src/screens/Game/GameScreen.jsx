@@ -14,7 +14,9 @@ import Animated, {
   useAnimatedStyle, 
   withTiming, 
   withRepeat,
-  withDelay
+  withDelay,
+  withSequence,
+  withSpring
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -85,6 +87,45 @@ export default function GameScreen({ navigation }) {
     }, 500);
   };
 
+  // Add icon animation
+  const iconScale = useSharedValue(0);
+  const iconRotate = useSharedValue(0);
+
+  useEffect(() => {
+    // Start the icon animation after a slight delay
+    iconScale.value = withDelay(300, withSequence(
+      withSpring(1.3, { 
+        damping: 4,
+        stiffness: 80,
+      }),
+      withSpring(1, {
+        damping: 6,
+        stiffness: 100,
+      })
+    ));
+
+    // Add a subtle rotation effect
+    iconRotate.value = withDelay(300, withSequence(
+      withSpring(-0.2, { 
+        damping: 4,
+        stiffness: 80,
+      }),
+      withSpring(0, {
+        damping: 6,
+        stiffness: 100,
+      })
+    ));
+  }, []);
+
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: iconScale.value },
+        { rotate: `${iconRotate.value}rad` }
+      ]
+    };
+  });
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -104,13 +145,18 @@ export default function GameScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
-          <Animated.Text style={[styles.title, animatedHeaderStyle]}>
-            Start a New Game
-          </Animated.Text>
+          <View style={styles.titlePill}>
+            <Animated.Image 
+              source={require('../../../assets/images/start-up1.png')} 
+              style={[styles.titleIcon, iconAnimatedStyle]} 
+            />
+            <Text style={styles.titleText}>Start New Game</Text>
+          </View>
         </View>
 
         {/* Solo Game Option */}
         <AnimatedTouchableOpacity 
+          activeOpacity={1}
           style={[styles.gameOption, animatedSoloOptionStyle]}
           onPress={handleStartSoloGame}
         >
@@ -126,6 +172,7 @@ export default function GameScreen({ navigation }) {
 
         {/* Multiplayer Game Option */}
         <AnimatedTouchableOpacity 
+          activeOpacity={1}
           style={[styles.gameOption, animatedMultiOptionStyle]}
           onPress={handleStartMultiplayerGame}
         >
@@ -269,5 +316,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 5,
+  },
+  titlePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7dbc63',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    borderRadius: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  titleText: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  titleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 5,
   },
 }); 

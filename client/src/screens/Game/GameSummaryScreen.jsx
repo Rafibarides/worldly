@@ -1,13 +1,16 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Image } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
   withTiming, 
   withDelay,
-  withSequence
+  withSequence,
+  withSpring
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 // Import the countries_by_continent file for a canonical list per continent
 import countriesByContinent from '../../utils/countries_by_continent.json';
 // Import the country helpers for normalization and territory matching
@@ -150,13 +153,66 @@ export default function GameSummaryScreen() {
   // Right before rendering, log the final continentPercentages:
   console.log('continentPercentages:', continentPercentages);
 
+  // Create an animated version of LinearGradient
+  const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+  // Add medal bounce animation
+  const medalScale = useSharedValue(0);
+  const medalRotate = useSharedValue(0);
+
+  useEffect(() => {
+    // Start the medal animation after a slight delay
+    medalScale.value = withDelay(300, withSequence(
+      withSpring(1.3, { 
+        damping: 4,
+        stiffness: 80,
+      }),
+      withSpring(1, {
+        damping: 6,
+        stiffness: 100,
+      })
+    ));
+
+    // Add a subtle rotation effect
+    medalRotate.value = withDelay(300, withSequence(
+      withSpring(-0.2, { 
+        damping: 4,
+        stiffness: 80,
+      }),
+      withSpring(0, {
+        damping: 6,
+        stiffness: 100,
+      })
+    ));
+  }, []);
+
+  const medalAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: medalScale.value },
+        { rotate: `${medalRotate.value}rad` }
+      ]
+    };
+  });
+
   return (
-    <Animated.View style={[styles.container, containerAnimatedStyle]}>
-      <Text style={styles.title}>Game Review</Text>
+    <AnimatedLinearGradient 
+      colors={['#70ab51', '#7dbc63', '#70ab51']}
+      locations={[0, 0.5, 0.06]}
+      start={{ x: 0, y: 0.5 }}
+      end={{ x: 0.06, y: 0.5 }}
+      style={[styles.container, containerAnimatedStyle]}
+    >
+      <View style={styles.titlePill}>
+        <Animated.Image 
+          source={require('../../../assets/images/medal.png')} 
+          style={[styles.medalIcon, medalAnimatedStyle]} 
+        />
+        <Text style={styles.titleText}>Game Review</Text>
+      </View>
       <Text style={styles.scoreText}>
         Total: {finalScore} / {totalCountries} countries
       </Text>
-
       {/* Cards Container for Continent Breakdown */}
       <View style={styles.cardsContainer}>
         {Object.keys(fixedContinentTotals).map((continent, index) => (
@@ -168,7 +224,6 @@ export default function GameSummaryScreen() {
           </AnimatedCard>
         ))}
       </View>
-
       {/* Animated Button for navigating back to game selection */}
       <AnimatedTouchableOpacity
         style={[styles.button, buttonAnimatedStyle]}
@@ -185,25 +240,52 @@ export default function GameSummaryScreen() {
           })
         }
       >
-        <Text style={styles.buttonText}>Back to Game Selection</Text>
+        <View style={styles.backButtonContent}>
+          <MaterialIcons 
+            name="arrow-back-ios" 
+            size={24} 
+            color="#ffc268" 
+            style={styles.buttonIcon} 
+          />
+          <Text style={styles.buttonText}>Back to Game Selection</Text>
+        </View>
       </AnimatedTouchableOpacity>
-    </Animated.View>
+    </AnimatedLinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(177,216,138,1)',
     padding: 30,
     justifyContent: 'center',
     alignItems: 'center'
   },
-  title: {
+  titlePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7dbc63',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    borderRadius: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 20,
+  },
+  titleText: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 20,
     color: '#fff',
+  },
+  medalIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 5,
   },
   scoreText: {
     fontSize: 20,
@@ -221,7 +303,7 @@ const styles = StyleSheet.create({
   card: {
     width: '30%', // Set each card's width so 3 cards fit per row
     height: 100,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: '#87c66b', // Updated: solid background for percentage cards
     marginBottom: 20, // Vertical spacing between rows
     borderRadius: 10,
     alignItems: 'center',
@@ -239,14 +321,31 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   button: {
-    backgroundColor: '#ffa500',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25
+    width: '90%',
+    height: 80,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginVertical: 10,
+    paddingHorizontal: 20,
+    shadowColor: '#d2d2d2',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
   },
   buttonText: {
-    color: '#fff',
     fontSize: 18,
-    fontWeight: '600'
-  }
+    fontWeight: 'bold',
+    color: '#4f7a3a',
+  },
+  backButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonIcon: {
+    marginRight: 10,
+  },
 }); 
