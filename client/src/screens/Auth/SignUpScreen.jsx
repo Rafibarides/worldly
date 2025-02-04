@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, database } from '../../services/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 
@@ -13,6 +13,39 @@ export default function SignUpScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // NEW: Track whether username is available
+  const [usernameAvailable, setUsernameAvailable] = useState(false);
+  const [availabilityMessage, setAvailabilityMessage] = useState('');
+
+  // NEW: Check username availability on each text change
+  const checkUsernameAvailability = async (rawName) => {
+    // Replace spaces with underscores
+    const replacedName = rawName.replace(/\s/g, "_");
+    setUsername(replacedName);
+
+    // Then run the normal logic
+    const trimmed = replacedName.trim();
+    if (!trimmed) {
+      // Empty or only underscores
+      setUsernameAvailable(false);
+      setAvailabilityMessage('');
+      return;
+    }
+
+    const lowerName = trimmed.toLowerCase();
+    const usersRef = collection(database, "users");
+    const nameQuery = query(usersRef, where("username_lower", "==", lowerName));
+    const snapshot = await getDocs(nameQuery);
+
+    if (!snapshot.empty) {
+      setUsernameAvailable(false);
+      setAvailabilityMessage('This username is taken');
+    } else {
+      setUsernameAvailable(true);
+      setAvailabilityMessage('Username is available');
+    }
+  };
 
   const handleSignup = async () => {
     if (!username || !email || !password || !confirmPassword) {
@@ -29,16 +62,33 @@ export default function SignUpScreen({ navigation }) {
 
     setLoading(true);
     try {
+      // Final check: Ensure no one created this username in the meantime
+      const usernameLower = username.trim().toLowerCase();
+      const usersRef = collection(database, "users");
+      const usernameQuery = query(usersRef, where("username_lower", "==", usernameLower));
+      const usernameSnapshot = await getDocs(usernameQuery);
+      if (!usernameSnapshot.empty) {
+        setLoading(false);
+        alert('error', 'Error', 'Sorry, this username is taken!');
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Generate a random seed for the avatar using Dicebear
+      const seed = Math.random().toString(36).substring(2, 8);
+      const avatarUrl = `https://api.dicebear.com/9.x/avataaars/png?seed=${seed}`;
+
+      // Include the lower-case username in the user data
       const currData = {
         username,
+        username_lower: usernameLower,
         email,
         friends: [],
         level: 1,
         stats: { gamesPlayed: 0, gamesWon: 0 },
-        avatarUrl: "https://example.com/default-avatar.png", // Default avatar URL
+        avatarUrl, // use the generated Dicebear avatar URL
         uid: user.uid,
         createdAt: Date.now(),
       };
@@ -63,9 +113,14 @@ export default function SignUpScreen({ navigation }) {
         style={styles.input}
         placeholder="Username"
         value={username}
-        onChangeText={setUsername}
+        onChangeText={checkUsernameAvailability}
         autoCapitalize="none"
       />
+      {!!availabilityMessage && (
+        <Text style={{ color: usernameAvailable ? 'green' : 'red' }}>
+          {availabilityMessage}
+        </Text>
+      )}
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -88,9 +143,10 @@ export default function SignUpScreen({ navigation }) {
         onChangeText={setConfirmPassword}
       />
       <TouchableOpacity
-        onPress={() => handleSignup()}
+        onPress={handleSignup}
         style={styles.button}
-        disabled={loading}
+        // Disable if loading or username is not available
+        disabled={loading || !usernameAvailable}
       >
         <Text style={styles.buttonText}>
           {!loading ? 'SignUp' : 'Loading...'}

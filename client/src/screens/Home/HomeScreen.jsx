@@ -4,6 +4,7 @@ import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useAuth } from '../../contexts/AuthContext';
+import ProfileView from '../../components/ProfileView';
 
 // For development, we'll use the first mock user
 // const currentUser = mockUsers[0];
@@ -14,27 +15,6 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 export default function HomeScreen({ navigation }) {
   const { currentUser } = useAuth();
 
-  const renderBadges = () => {
-    return currentUser?.badges?.map((badgeId) => {
-      const badge = mockBadges?.find(b => b.id === badgeId);
-      return (
-            <View key={badgeId} style={styles.badge}>
-              <Image
-                source={require('../../../assets/images/badge-hero.png')}
-                style={styles.badgeHero}
-                resizeMode="contain"
-              />
-              <Image
-                source={badge?.icon}
-                style={styles.badgeIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.badgeName}>{badge?.name}</Text>
-            </View>
-      );
-    });
-  };
-
   return (
     <AnimatedLinearGradient
       colors={['#70ab51', '#7dbc63', '#70ab51']}
@@ -43,78 +23,9 @@ export default function HomeScreen({ navigation }) {
       end={{ x: 0.06, y: 0.5 }}
       style={styles.container}
     >
-      {/* Profile Section */}
-      <View style={styles.profileSection}>
-        <View style={styles.headerRow}>
-          {/* Level Pill */}
-          <View style={styles.levelPill}>
-            <Image
-              style={styles.medalIcon}
-              source={require('../../../assets/images/medal.png')}
-            />
-            <Text style={styles.levelText}>Level: {currentUser.level}</Text>
-          </View>
-
-          {/* Settings Button */}
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('ProfileSettings')}
-          >
-            <MaterialIcons name="more-vert" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatar}>🌍</Text>
-          <Text style={styles.username}>{currentUser?.username}</Text>
-        </View>
-
-        {/* Stats Cards */}
-        <View style={styles.statCard}>
-          <View style={styles.statRow}>
-            <View style={styles.statContent}>
-              <Text style={styles.statNumber}>{currentUser?.stats?.gamesPlayed}</Text>
-              <Text style={styles.statLabel}>Games Played</Text>
-            </View>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statRow}>
-            <View style={styles.statContent}>
-              <Text style={styles.statNumber}>{currentUser?.stats?.gamesWon}</Text>
-              <Text style={styles.statLabel}>Wins</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Badges Section */}
-      <View style={styles.badgesSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Badges</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('BadgesList')}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
-        {currentUser.badges ? (
-          <ScrollView
-            horizontal={true}
-            contentContainerStyle={styles.badgesContainer}
-            showsHorizontalScrollIndicator={false}
-          >
-            {renderBadges()}
-          </ScrollView>
-        ) : (
-          <Text style={styles.noBadgesText}>No badges to show</Text>
-        )}
-      </View>
-
-      {/* Challenge Button */}
-      {/* <TouchableOpacity 
-        style={styles.challengeButton}
-        onPress={() => navigation.navigate('Game')}
-      >
-        <MaterialIcons name="flag" size={24} color="white" />
-        <Text style={styles.challengeButtonText}>Start New Game</Text>
-      </TouchableOpacity> */}
+      {/* Render the common profile view using the current user data */}
+      <ProfileView user={currentUser} />
+      {/* Other HomeScreen content can follow here */}
     </AnimatedLinearGradient>
   );
 }
@@ -143,7 +54,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   avatar: {
-    fontSize: 60,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginBottom: 10,
   },
   username: {
