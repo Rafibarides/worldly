@@ -48,7 +48,33 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
-  const value = { currentUser, setCurrentUser, logout, loading };
+  const fetchCurrentUser = async () => {
+    if (!auth.currentUser) return null;
+    
+    try {
+      const userDocRef = doc(database, "users", auth.currentUser.uid);
+      const userSnapshot = await getDoc(userDocRef);
+      
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.data();
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        setCurrentUser(userData);
+        return userData;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      return null;
+    }
+  };
+
+  const value = { 
+    currentUser, 
+    setCurrentUser, 
+    logout, 
+    loading,
+    fetchCurrentUser 
+  };
 
   return (
     <AuthContext.Provider value={value}>

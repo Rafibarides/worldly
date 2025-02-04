@@ -4,10 +4,11 @@ import BadgesListScreen from '../screens/Badges/BadgesListScreen';
 import { createStackNavigator } from '@react-navigation/stack';
 import FriendRequestsScreen from '../screens/Friends/FriendRequestsScreen';
 import FriendsListScreen from '../screens/Friends/FriendsListScreen';
-import FriendSearchScreen from '../screens/Friends/FriendSearchScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import FriendSearchScreen from '../screens/Friends/FriendSearchScreen';
 
 const Stack = createStackNavigator();
+const SearchStack = createStackNavigator();
 
 // Export FriendsNavigator so it can be used in BottomTabNavigator
 export function FriendsNavigator() {
@@ -36,6 +37,18 @@ export function FriendsNavigator() {
         }}
       />
     </Stack.Navigator>
+  );
+}
+
+export function SearchStackNavigator() {
+  return (
+    <SearchStack.Navigator>
+      <SearchStack.Screen 
+        name="FriendSearch" 
+        component={FriendSearchScreen} 
+        options={{ headerShown: false }}
+      />
+    </SearchStack.Navigator>
   );
 }
 

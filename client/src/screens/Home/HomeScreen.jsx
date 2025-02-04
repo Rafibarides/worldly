@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useAuth } from '../../contexts/AuthContext';
 import ProfileView from '../../components/ProfileView';
+import React, { useState, useEffect } from 'react';
 
 // For development, we'll use the first mock user
 // const currentUser = mockUsers[0];
@@ -13,7 +14,31 @@ import ProfileView from '../../components/ProfileView';
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function HomeScreen({ navigation }) {
-  const { currentUser } = useAuth();
+  const { currentUser, fetchCurrentUser } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh data whenever the HomeScreen gains focus using a navigation listener
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', async () => {
+      await fetchCurrentUser();
+    });
+    return unsubscribe;
+  }, [navigation, fetchCurrentUser]);
+
+  // Pull-to-refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCurrentUser();
+    setRefreshing(false);
+  };
+
+  if (!currentUser) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#70ab51" />
+      </View>
+    );
+  }
 
   return (
     <AnimatedLinearGradient
@@ -23,9 +48,16 @@ export default function HomeScreen({ navigation }) {
       end={{ x: 0.06, y: 0.5 }}
       style={styles.container}
     >
-      {/* Render the common profile view using the current user data */}
-      <ProfileView user={currentUser} />
-      {/* Other HomeScreen content can follow here */}
+      {/* Wrap the content in a ScrollView with pull-to-refresh */}
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <ProfileView user={currentUser} />
+        {/* Other HomeScreen content can follow here */}
+      </ScrollView>
     </AnimatedLinearGradient>
   );
 }

@@ -83,10 +83,10 @@ export default function FriendsListScreen({ navigation }) {
     }, [currentUser])
   );
 
-  // Filter friends based on the search query.
-  const filteredFriends = friends.filter(friend => 
-    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter friends using a case insensitive search
+  const filteredFriends = friends.filter(friend => {
+    return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   // Add an onRefresh function that uses the refreshing state:
   const onRefresh = async () => {

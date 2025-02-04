@@ -27,6 +27,9 @@ import worldData from '../../../assets/geojson/ne_50m_admin_0_countries.json';
 import { feature } from 'topojson-client';
 import { normalizeCountryName, getTerritoriesForCountry, getTerritoryMatch } from '../../utils/countryHelpers';
 import recognizedCountries from '../../utils/recognized_countries.json';
+import { updateDoc, increment, doc } from 'firebase/firestore';
+import { database } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 let geoJSON;
 if (worldData.type === 'Topology') {
@@ -91,6 +94,8 @@ export default function GamePlayScreen({ route, navigation }) {
   const inputShake = useSharedValue(0);
   const toastOpacity = useSharedValue(0);
   const toastTranslate = useSharedValue(0);
+
+  const { currentUser, fetchCurrentUser } = useAuth();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -226,7 +231,18 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   };
 
-  const handleGameEnd = () => {
+  const handleGameEnd = async () => {
+    // Increment the user's gamesPlayed field when the game is completed
+    try {
+      await updateDoc(doc(database, 'users', currentUser.uid), {
+        'stats.gamesPlayed': increment(1),
+      });
+      // Immediately refetch user data to ensure the latest stats are loaded
+      await fetchCurrentUser();
+    } catch (error) {
+      console.error("Error updating gamesPlayed:", error);
+    }
+
     if (gameType === 'solo') {
       navigation.replace('GameSummary', {
         finalScore: scoreRef.current,
@@ -234,7 +250,10 @@ export default function GamePlayScreen({ route, navigation }) {
         guessedCountries: guessedCountriesRef.current,
       });
     } else {
-      console.log('Multiplayer end game logic goes here.');
+      // If using a game summary page for multiplayer, update as necessary.
+      navigation.replace('GameSummary', {
+        // Add multiplayer game summary props here if applicable
+      });
     }
   };
 

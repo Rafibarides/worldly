@@ -9,13 +9,12 @@ import Animated, {
   useAnimatedStyle, 
   withTiming 
 } from 'react-native-reanimated';
-import { FriendsNavigator } from './AppNavigator';  // Import FriendsNavigator
+import { FriendsNavigator, SearchStackNavigator } from './AppNavigator';  // Import FriendsNavigator and SearchStackNavigator
 
 // Import screens
 import GameScreen from '../screens/Game/GameScreen';
 import GamePlayScreen from '../screens/Game/GamePlayScreen';
 import GameSummaryScreen from '../screens/Game/GameSummaryScreen';
-import FriendSearchScreen from '../screens/Friends/FriendSearchScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import FriendsListScreen from '../screens/Friends/FriendsListScreen';
 import AboutScreen from '../screens/About/AboutScreen'; // Using this as "Logs" for now
@@ -75,23 +74,6 @@ function FriendsStackNavigator() {
         options={{ title: 'Profile' }}
       />
     </FriendsStack.Navigator>
-  );
-}
-
-function SearchStackNavigator() {
-  return (
-    <SearchStack.Navigator>
-      <SearchStack.Screen
-        name="FriendSearch"
-        component={FriendSearchScreen}
-        options={{ title: 'Find Friends' }}
-      />
-      <SearchStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Profile' }}
-      />
-    </SearchStack.Navigator>
   );
 }
 
