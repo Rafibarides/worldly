@@ -1,30 +1,42 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
+import { useAuth } from '../../contexts/AuthContext';
 
 // For development, we'll use the first mock user
-const currentUser = mockUsers[0];
+// const currentUser = mockUsers[0];
 
 // If not already defined, create an animated version of LinearGradient:
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function HomeScreen({ navigation }) {
+  const { currentUser } = useAuth();
+
   const renderBadges = () => {
-    return currentUser.badges.map((badgeId) => {
-      const badge = mockBadges.find(b => b.id === badgeId);
+    return currentUser?.badges?.map((badgeId) => {
+      const badge = mockBadges?.find(b => b.id === badgeId);
       return (
-        <View key={badgeId} style={styles.badge}>
-          <Text style={styles.badgeIcon}>{badge.icon}</Text>
-          <Text style={styles.badgeName}>{badge.name}</Text>
-        </View>
+            <View key={badgeId} style={styles.badge}>
+              <Image
+                source={require('../../../assets/images/badge-hero.png')}
+                style={styles.badgeHero}
+                resizeMode="contain"
+              />
+              <Image
+                source={badge?.icon}
+                style={styles.badgeIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.badgeName}>{badge?.name}</Text>
+            </View>
       );
     });
   };
 
   return (
-    <AnimatedLinearGradient 
+    <AnimatedLinearGradient
       colors={['#70ab51', '#7dbc63', '#70ab51']}
       locations={[0, 0.5, 0.06]}
       start={{ x: 0, y: 0.5 }}
@@ -34,31 +46,42 @@ export default function HomeScreen({ navigation }) {
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <View style={styles.headerRow}>
-          <TouchableOpacity 
+          {/* Level Pill */}
+          <View style={styles.levelPill}>
+            <Image
+              style={styles.medalIcon}
+              source={require('../../../assets/images/medal.png')}
+            />
+            <Text style={styles.levelText}>Level: {currentUser.level}</Text>
+          </View>
+
+          {/* Settings Button */}
+          <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => navigation.navigate('ProfileSettings')}
           >
-            <MaterialIcons name="settings" size={24} color="#666" />
+            <MaterialIcons name="more-vert" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
         <View style={styles.avatarContainer}>
           <Text style={styles.avatar}>🌍</Text>
-          <Text style={styles.username}>{currentUser.username}</Text>
+          <Text style={styles.username}>{currentUser?.username}</Text>
         </View>
-        
+
         {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.gamesPlayed}</Text>
-            <Text style={styles.statLabel}>Games Played</Text>
+        <View style={styles.statCard}>
+          <View style={styles.statRow}>
+            <View style={styles.statContent}>
+              <Text style={styles.statNumber}>{currentUser?.stats?.gamesPlayed}</Text>
+              <Text style={styles.statLabel}>Games Played</Text>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.gamesWon}</Text>
-            <Text style={styles.statLabel}>Wins</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{currentUser.stats.totalCountriesGuessed}</Text>
-            <Text style={styles.statLabel}>Countries</Text>
+          <View style={styles.statDivider} />
+          <View style={styles.statRow}>
+            <View style={styles.statContent}>
+              <Text style={styles.statNumber}>{currentUser?.stats?.gamesWon}</Text>
+              <Text style={styles.statLabel}>Wins</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -71,13 +94,17 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView 
-          horizontal={true}
-          contentContainerStyle={styles.badgesContainer}
-          showsHorizontalScrollIndicator={false}
-        >
-          {renderBadges()}
-        </ScrollView>
+        {currentUser.badges ? (
+          <ScrollView
+            horizontal={true}
+            contentContainerStyle={styles.badgesContainer}
+            showsHorizontalScrollIndicator={false}
+          >
+            {renderBadges()}
+          </ScrollView>
+        ) : (
+          <Text style={styles.noBadgesText}>No badges to show</Text>
+        )}
       </View>
 
       {/* Challenge Button */}
@@ -96,6 +123,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: 60,
   },
   profileSection: {
     padding: 20,
@@ -103,15 +131,12 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     width: '100%',
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    marginBottom: 60,
   },
   settingsButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(242, 174, 199, 0.1)', // Theme color with opacity
   },
   avatarContainer: {
     alignItems: 'center',
@@ -124,30 +149,40 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: 20,
+    color: '#fff',
   },
   statCard: {
-    backgroundColor: 'rgba(177, 216, 138, 0.1)', // Theme color with opacity
-    padding: 15,
+    backgroundColor: 'rgba(177, 216, 138, 0.1)',
+    padding: 20,
     borderRadius: 10,
+    width: '80%',
+    marginTop: 20,
+  },
+  statRow: {
+    paddingVertical: 10,
+    width: '100%',
+  },
+  statContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 100,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  statDivider: {
+    height: 1,
+    width: '90%',
+    backgroundColor: 'rgba(177, 216, 138, 0.3)',
+    marginVertical: 5,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'rgba(177, 216, 138, 1)', // Theme color
+    color: '#fff',
   },
   statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
+    fontSize: 16,
+    color: '#fff',
+    opacity: 0.9,
   },
   badgesSection: {
     padding: 0,
@@ -163,6 +198,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
+    marginLeft: 25,
   },
   seeAllText: {
     color: '#ffffff',
@@ -174,23 +210,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   badge: {
-    backgroundColor: '#87c66b', // Updated background color
-    width: 120,                // Fixed width
-    height: 140,              // Fixed height (slightly taller)
+    backgroundColor: '#87c66b',
+    width: 140,
+    height: 180,
     borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'center',  // Center children vertically
-    margin: 10,                // Optional margin for spacing
+    justifyContent: 'center',
+    margin: 10,
+    padding: 10,
+    marginTop: 20,
+  },
+  badgeHero: {
+    width: 30,
+    height: 30,
+    position: 'absolute',
+    top: -11,
+    alignSelf: 'center',
   },
   badgeIcon: {
-    fontSize: 24,
-    marginBottom: 5,
-    color: '#fff',      // Set icon text to white
+    width: 120,
+    height: 120,
   },
   badgeName: {
     fontSize: 12,
     textAlign: 'center',
-    color: '#fff',       // Set badge name text to white
+    color: '#fff',
+    marginBottom: 0,
+  },
+  noBadgesText: {
+    fontSize: 18,
+    textAlign: 'center',
+    color: '#fff',
+    marginBottom: 0,
   },
   challengeButton: {
     backgroundColor: 'rgba(177, 216, 138, 1)', // Theme color
@@ -206,5 +257,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  levelPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 25,
+    backgroundColor: '#75b35b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0.4 },
+    shadowOpacity: 0.20,
+    shadowRadius: 1.6,
+    elevation: 1,
+  },
+  medalIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+    marginRight: 8,
+  },
+  levelText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
   },
 }); 

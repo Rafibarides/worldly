@@ -1,0 +1,222 @@
+{
+    "admin": [
+        {
+            "userId": "user_1",
+            "username": "geo_master",
+            "email": "geo_master@example.com",
+            "avatarUrl": "https://multiavatar.com/geo_master.png",
+            "friends": [
+                "user_2",
+                "user_3"
+            ],
+            "level": 5,
+            "stats": {
+                "gamesPlayed": 10,
+                "gamesWon": 6
+            }
+        },
+        {
+            "userId": "user_2",
+            "username": "map_explorer",
+            "email": "map_explorer@example.com",
+            "avatarUrl": "https://multiavatar.com/map_explorer.png",
+            "friends": [
+                "user_1"
+            ],
+            "level": 3,
+            "stats": {
+                "gamesPlayed": 8,
+                "gamesWon": 3
+            }
+        },
+        {
+            "userId": "user_3",
+            "username": "continent_king",
+            "email": "continent_king@example.com",
+            "avatarUrl": "https://multiavatar.com/continent_king.png",
+            "friends": [
+                "user_1"
+            ],
+            "level": 7,
+            "stats": {
+                "gamesPlayed": 15,
+                "gamesWon": 9
+            }
+        }
+    ],
+    "badges": [
+        {
+            "badgeName": "Africa Explorer",
+            "continent": "Africa",
+            "description": "Guessed all African countries correctly.",
+            "timesRequired": 3
+        },
+        {
+            "badgeName": "Europe Conqueror",
+            "continent": "Europe",
+            "description": "Named all European countries three times.",
+            "timesRequired": 3
+        },
+        {
+            "badgeName": "World Master",
+            "continent": "Global",
+            "description": "Guessed all 196 countries three times.",
+            "timesRequired": 3
+        }
+    ],
+    "userBadges": [
+        {
+            "userId": "user_1",
+            "badgeId": "Africa Explorer",
+            "earnedDate": "2025-01-31T06:00:16.803285",
+            "timesCompleted": 3
+        },
+        {
+            "userId": "user_2",
+            "badgeId": "Europe Conqueror",
+            "earnedDate": "2025-01-19T06:00:16.803329",
+            "timesCompleted": 1
+        },
+        {
+            "userId": "user_3",
+            "badgeId": "World Master",
+            "earnedDate": "2025-01-06T06:00:16.803343",
+            "timesCompleted": 2
+        }
+    ],
+    "friendships": [
+        {
+            "user1": "user_1",
+            "user2": "user_2",
+            "status": "confirmed"
+        },
+        {
+            "user1": "user_1",
+            "user2": "user_3",
+            "status": "confirmed"
+        },
+        {
+            "user1": "user_2",
+            "user2": "user_3",
+            "status": "pending"
+        }
+    ],
+    "challenges": [
+        {
+            "challengerId": "user_1",
+            "challengedId": "user_2",
+            "status": "pending"
+        },
+        {
+            "challengerId": "user_3",
+            "challengedId": "user_1",
+            "status": "accepted"
+        },
+        {
+            "challengerId": "user_2",
+            "challengedId": "user_3",
+            "status": "completed"
+        }
+    ],
+    "games": [
+        {
+            "gameId": "game_1",
+            "startTime": "2025-01-26T06:00:16.803357",
+            "endTime": "2025-01-17T06:00:16.803367",
+            "gameType": "multiplayer",
+            "status": "completed",
+            "winnerId": "user_1"
+        },
+        {
+            "gameId": "game_2",
+            "startTime": "2025-01-06T06:00:16.803377",
+            "endTime": "2025-01-15T06:00:16.803386",
+            "gameType": "solo",
+            "status": "completed",
+            "winnerId": "user_2"
+        },
+        {
+            "gameId": "game_3",
+            "startTime": "2025-01-24T06:00:16.803397",
+            "endTime": "2025-01-05T06:00:16.803412",
+            "gameType": "multiplayer",
+            "status": "in-progress",
+            "winnerId": null
+        }
+    ],
+    "gameParticipants": [
+        {
+            "userId": "user_1",
+            "gameId": "game_1",
+            "countriesGuessed": [
+                "France",
+                "Germany",
+                "Italy"
+            ],
+            "score": 20,
+            "timeStamp": "2025-01-15T06:00:16.803417"
+        },
+        {
+            "userId": "user_2",
+            "gameId": "game_1",
+            "countriesGuessed": [
+                "Brazil",
+                "Argentina",
+                "Peru"
+            ],
+            "score": 15,
+            "timeStamp": "2025-01-08T06:00:16.803422"
+        },
+        {
+            "userId": "user_3",
+            "gameId": "game_2",
+            "countriesGuessed": [
+                "USA",
+                "Canada",
+                "Mexico"
+            ],
+            "score": 25,
+            "timeStamp": "2025-01-16T06:00:16.803427"
+        }
+    ],
+    "gameCountries": [
+        {
+            "gameId": "game_1",
+            "continent": "Europe",
+            "countryName": "France",
+            "isGuessed": true
+        },
+        {
+            "gameId": "game_1",
+            "continent": "Europe",
+            "countryName": "Germany",
+            "isGuessed": true
+        },
+        {
+            "gameId": "game_2",
+            "continent": "North America",
+            "countryName": "Canada",
+            "isGuessed": true
+        }
+    ],
+    "notifications": [
+        {
+            "userId": "user_1",
+            "message": "You have a new challenge from user_3!",
+            "isRead": false,
+            "timeStamp": "2025-01-24T06:00:16.803433"
+        },
+        {
+            "userId": "user_2",
+            "message": "Your challenge against user_3 has been accepted!",
+            "isRead": true,
+            "timeStamp": "2025-01-14T06:00:16.803439"
+        },
+        {
+            "userId": "user_3",
+            "message": "You won your last game!",
+            "isRead": false,
+            "timeStamp": "2025-01-22T06:00:16.803443"
+        }
+    ]
+}

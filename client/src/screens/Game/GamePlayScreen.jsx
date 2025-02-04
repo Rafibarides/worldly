@@ -71,7 +71,7 @@ export default function GamePlayScreen({ route, navigation }) {
   const { gameType, settings } = route.params;
 
   // Temporarily override to 30 seconds for testing:
-  const [timeLeft, setTimeLeft] = useState(30);  
+  const [timeLeft, setTimeLeft] = useState(60);  
 
   const [guess, setGuess] = useState('');
   const [score, setScore] = useState(0);

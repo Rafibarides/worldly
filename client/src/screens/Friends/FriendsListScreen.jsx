@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,110 +9,196 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { mockUsers, mockFriendships } from '../../utils/mockData';
-
-// For development, using first mock user as current user
-const currentUser = mockUsers[0];
+import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
+import { database } from '../../services/firebase';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FriendsListScreen({ navigation }) {
+  const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [friends, setFriends] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Get friends list from mock data
-  const getFriendsList = () => {
-    const friendships = mockFriendships.filter(
-      f => (f.userId1 === currentUser.id || f.userId2 === currentUser.id) 
-          && f.status === 'accepted'
-    );
+  // Fetch confirmed friendships from Firestore based on the logged in user.
+  const fetchFriends = async () => {
+    setIsLoading(true);
+    try {
+      const friendshipsRef = collection(database, "friendships");
+      // Query friendships where the current user is the requester
+      const q1 = query(
+        friendshipsRef, 
+        where("status", "==", "confirmed"), 
+        where("requesterId", "==", currentUser.uid)
+      );
+      // Query friendships where the current user is the requestee
+      const q2 = query(
+        friendshipsRef, 
+        where("status", "==", "confirmed"), 
+        where("requesteeId", "==", currentUser.uid)
+      );
+      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
 
-    return friendships.map(friendship => {
-      const friendId = friendship.userId1 === currentUser.id 
-        ? friendship.userId2 
-        : friendship.userId1;
-      return mockUsers.find(user => user.id === friendId);
-    });
+      const friendshipDocs = [];
+      snapshot1.forEach(docSnap => friendshipDocs.push(docSnap));
+      snapshot2.forEach(docSnap => friendshipDocs.push(docSnap));
+
+      // Extract friend IDs (depending on whether the current user is requester or requestee)
+      const friendIds = friendshipDocs.map(docSnap => {
+        const data = docSnap.data();
+        return data.requesterId === currentUser.uid ? data.requesteeId : data.requesterId;
+      });
+
+      // Remove duplicates (if any)
+      const uniqueFriendIds = [...new Set(friendIds)];
+
+      // Fetch each friend's details from the "users" collection
+      const fetchedFriends = [];
+      for (const friendId of uniqueFriendIds) {
+        const userRef = doc(database, "users", friendId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          fetchedFriends.push(userSnap.data());
+        }
+      }
+      setFriends(fetchedFriends);
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+    setIsLoading(false);
   };
 
-  // Filter friends based on search query
-  const getFilteredFriends = () => {
-    const friends = getFriendsList();
-    if (!searchQuery) return friends;
-    
-    return friends.filter(friend => 
-      friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  };
+  useEffect(() => {
+    if (currentUser) {
+      fetchFriends();
+    }
+  }, [currentUser]);
 
-  const handleChallenge = (friendId) => {
-    // TODO: Implement challenge functionality
-    console.log('Challenge friend:', friendId);
-    navigation.navigate('Game', { challengedUserId: friendId });
-  };
-
-  const renderFriendItem = ({ item }) => (
-    <TouchableOpacity 
-      onPress={() => navigation.navigate('Profile', { userId: item.id })}
-    >
-      <View style={styles.friendCard}>
-        <View style={styles.friendInfo}>
-          <Text style={styles.avatar}>��</Text>
-          <View style={styles.textContainer}>
-            <Text style={styles.username}>{item.username}</Text>
-            <Text style={styles.stats}>
-              Won: {item.stats.gamesWon}/{item.stats.gamesPlayed} | 
-              Countries: {item.stats.totalCountriesGuessed}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={styles.challengeButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleChallenge(item.id);
-            }}
-          >
-            <MaterialIcons name="flag" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.removeButton}
-            onPress={() => console.log('Remove friend:', item.id)}
-          >
-            <MaterialIcons name="person-remove" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentUser) {
+        fetchFriends();
+      }
+    }, [currentUser])
   );
+
+  // Filter friends based on the search query.
+  const filteredFriends = friends.filter(friend => 
+    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Add an onRefresh function that uses the refreshing state:
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchFriends();
+    setRefreshing(false);
+  };
+
+  // Remove friend handler: Queries the confirmed friendship document
+  // and deletes it from Firestore.
+  const handleRemoveFriend = async (friendUid) => {
+    try {
+      const friendshipsRef = collection(database, "friendships");
+      // Query for the friendship where the current user is the requester
+      const q1 = query(
+        friendshipsRef,
+        where("status", "==", "confirmed"),
+        where("requesterId", "==", currentUser.uid),
+        where("requesteeId", "==", friendUid)
+      );
+      // Query for the friendship where the current user is the requestee
+      const q2 = query(
+        friendshipsRef,
+        where("status", "==", "confirmed"),
+        where("requesterId", "==", friendUid),
+        where("requesteeId", "==", currentUser.uid)
+      );
+      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      let friendshipDocSnap = null;
+      if (!snapshot1.empty) {
+        friendshipDocSnap = snapshot1.docs[0];
+      } else if (!snapshot2.empty) {
+        friendshipDocSnap = snapshot2.docs[0];
+      }
+      if (friendshipDocSnap) {
+        await deleteDoc(doc(database, "friendships", friendshipDocSnap.id));
+        alert("Friend removed!");
+        // Refresh the friends list after removal.
+        fetchFriends();
+      } else {
+        alert("Friendship not found.");
+      }
+    } catch (err) {
+      console.error("Error removing friend:", err);
+      alert("Error removing friend.");
+    }
+  };
+
+  // Challenge friend handler: Navigates to the 'Game' screen and passes the friend as a parameter.
+  const handleChallengeFriend = (friend) => {
+    navigation.navigate('Game', { challengedFriend: friend });
+  };
+
+  // Add the new handler function inside your FriendsListScreen component:
+  const handleViewFriendProfile = (friend) => {
+    navigation.navigate('Profile', { profileUser: friend });
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={24} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search friends..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-        />
+      {/* Header with screen title and notifications button */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Friends List</Text>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('FriendRequests')}>
+          <MaterialIcons name="notifications" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
 
+      <TextInput
+        style={styles.input}
+        placeholder="Search friends..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+
       {isLoading ? (
-        <ActivityIndicator style={styles.loader} color="rgba(177, 216, 138, 1)" />
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : filteredFriends.length === 0 ? (
+        <Text style={styles.emptyText}>No friends found.</Text>
       ) : (
         <FlatList
-          data={getFilteredFriends()}
-          renderItem={renderFriendItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.friendsList}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {searchQuery 
-                ? "No friends match your search" 
-                : "You haven't added any friends yet"}
-            </Text>
-          }
+          data={filteredFriends}
+          keyExtractor={(item) => item.uid}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
+          renderItem={({ item }) => (
+            <View style={styles.friendItem}>
+              {/* Wrap the friend's username in a TouchableOpacity */}
+              <TouchableOpacity 
+                onPress={() => handleViewFriendProfile(item)} 
+                style={{ flex: 1 }}
+              >
+                <Text style={styles.username}>{item.username}</Text>
+              </TouchableOpacity>
+              <View style={styles.friendActions}>
+                <TouchableOpacity 
+                  onPress={() => handleRemoveFriend(item.uid)} 
+                  style={styles.iconButton}
+                >
+                  <MaterialIcons name="person-remove" size={24} color="red" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleChallengeFriend(item)} 
+                  style={styles.iconButton}
+                >
+                  <MaterialIcons name="public" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         />
       )}
     </View>
@@ -122,80 +208,50 @@ export default function FriendsListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
     padding: 16,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  loader: {
-    marginTop: 20,
-  },
-  friendsList: {
-    flexGrow: 1,
-  },
-  friendCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 15,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
   },
-  friendInfo: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    flex: 1,
+    marginBottom: 16,
   },
-  avatar: {
-    fontSize: 40,
-    marginRight: 12,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
-  textContainer: {
-    flex: 1,
+  notificationButton: {
+    padding: 8,
+  },
+  input: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 25,
+    padding: 10,
+    marginBottom: 16,
+  },
+  friendItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   username: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  stats: {
-    fontSize: 12,
-    color: '#666',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  challengeButton: {
-    backgroundColor: 'rgba(177, 216, 138, 1)',
-    padding: 10,
-    borderRadius: 20,
-  },
-  removeButton: {
-    padding: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(242, 174, 199, 0.1)',
+    fontSize: 18,
   },
   emptyText: {
     textAlign: 'center',
     color: '#666',
     marginTop: 20,
+  },
+  friendActions: {
+    flexDirection: 'row',
+  },
+  iconButton: {
+    marginLeft: 8,
   },
 }); 

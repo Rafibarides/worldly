@@ -9,6 +9,7 @@ import Animated, {
   useAnimatedStyle, 
   withTiming 
 } from 'react-native-reanimated';
+import { FriendsNavigator } from './AppNavigator';  // Import FriendsNavigator
 
 // Import screens
 import GameScreen from '../screens/Game/GameScreen';
@@ -219,7 +220,7 @@ export default function BottomTabNavigator() {
       />
       <Tab.Screen 
         name="Friends" 
-        component={FriendsStackNavigator}
+        component={FriendsNavigator}  // Use FriendsNavigator instead of FriendsListScreen
         options={{ headerShown: false }}
       />
       <Tab.Screen

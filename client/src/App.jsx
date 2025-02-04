@@ -1,19 +1,23 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
-import AppNavigator from './navigation/AppNavigator';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import BottomTabNavigator from './navigation/BottomTabNavigator';
+import AuthStackNavigator from './navigation/AuthStackNavigator';
 
-export default function App() {
+// Routes component which checks if there's a logged-in user
+function Routes() {
+  const { currentUser } = useAuth();
   return (
-    <View style={styles.container}>
-      <AppNavigator />
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      {currentUser ? <BottomTabNavigator /> : <AuthStackNavigator />}
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});
+export default function App({navigation}) {
+  return (
+    <AuthProvider navigation={navigation}>
+      <Routes />
+    </AuthProvider>
+  );
+}
