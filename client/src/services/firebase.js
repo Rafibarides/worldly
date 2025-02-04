@@ -4,15 +4,34 @@ import { getStorage } from 'firebase/storage';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import Constants from 'expo-constants';
+
+// Retrieve Expo configuration from Constants.
+// Use Constants.manifest for older versions; if it's null, fallback to Constants.expoConfig.
+const expoConfig = Constants.manifest || Constants.expoConfig;
+const {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+  FIREBASE_MEASUREMENT_ID,
+} = (expoConfig && expoConfig.extra) || {};
+
+// Optional check (you can remove this in production)
+if (!FIREBASE_API_KEY) {
+  console.error("Firebase configuration is missing. Please check your app.json 'extra' settings.");
+}
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDID6GE-_GroY_fRg4awrXBF-pM-WhHDSM",
-  authDomain: "wordly-app-b86b5.firebaseapp.com",
-  projectId: "wordly-app-b86b5",
-  storageBucket: "wordly-app-b86b5.firebasestorage.app",
-  messagingSenderId: "481611040058",
-  appId: "1:481611040058:web:8bbb367c5cdcdc3a867c03",
-  measurementId: "G-52FNWMTV0Q"
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
+  measurementId: FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
