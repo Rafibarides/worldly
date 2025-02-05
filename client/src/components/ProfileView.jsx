@@ -11,23 +11,41 @@ export default function ProfileView({ user }) {
   const isCurrentUser = currentUser && user && currentUser.uid === user.uid;
 
   const renderBadges = () => {
-    return (user?.badges || []).map((badgeId) => {
+    const earnedBadges = new Set(user?.badges || []);
+    if (user?.continentsTracked) {
+      Object.entries(user.continentsTracked).forEach(([continent, count]) => {
+        if (count >= 3) {
+          earnedBadges.add(continent);
+        }
+      });
+    }
+    return Array.from(earnedBadges).map((badgeId) => {
       const badge = mockBadges.find(b => b.id === badgeId);
-      return (
-        <View key={badgeId} style={styles.badge}>
-          <Image 
-            source={require('../../assets/images/badge-hero.png')}
-            style={styles.badgeHero}
-            resizeMode="contain"
-          />
-          <Image 
-            source={badge.icon}
-            style={styles.badgeIcon}
-            resizeMode="contain"
-          />
-          <Text style={styles.badgeName}>{badge.name}</Text>
-        </View>
-      );
+      if (badge) {
+        return (
+          <View key={badgeId} style={styles.badge}>
+            <Image 
+              source={require('../../assets/images/badge-hero.png')}
+              style={styles.badgeHero}
+              resizeMode="contain"
+            />
+            <View style={styles.badgeIconWrapper}>
+              <Image 
+                source={require('../../assets/images/platform.png')}
+                style={styles.badgePlatform}
+                resizeMode="contain"
+              />
+              <Image 
+                source={badge.icon}
+                style={styles.badgeIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.badgeName}>{badge.name}</Text>
+          </View>
+        );
+      }
+      return null;
     });
   };
 
@@ -96,7 +114,7 @@ export default function ProfileView({ user }) {
         </View>
       </View>
 
-      {/* UPDATED Badges Section with Header Row */}
+      {/* UPDATED: Badges Section */}
       <View style={styles.badgesSection}>
         <View style={styles.badgesHeaderRow}>
           <Text style={styles.sectionTitle}>Badges</Text>
@@ -104,9 +122,13 @@ export default function ProfileView({ user }) {
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.badgesContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10 }}
+        >
           {renderBadges()}
-        </View>
+        </ScrollView>
       </View>
     </ScrollView>
   );
@@ -125,7 +147,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 35,
   },
   settingsButton: {
     padding: 8,
@@ -229,7 +251,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   badgesSection: {
     padding: 20,
@@ -244,35 +266,50 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontSize: 16,
   },
-  badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
   badge: {
-    backgroundColor: 'rgba(242, 174, 199, 0.1)',
+    backgroundColor: '#87c66b',
     padding: 10,
     borderRadius: 12,
     alignItems: 'center',
-    minWidth: 100,
     marginTop: 15,
+    width: 130,
+    height: 150,
   },
   badgeHero: {
     width: 30,
     height: 30,
     position: 'absolute',
-    top: -15,
+    top: -12,
     alignSelf: 'center',
+  },
+  badgeIconWrapper: {
+    width: 90,
+    height: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginTop: 12,
   },
   badgeIcon: {
     width: 70,
     height: 70,
-    marginBottom: 4,
+    position: 'relative',
+    zIndex: 5,
+    margin: 10,
+  },
+  badgePlatform: {
+    width: 140,
+    height: 40,
+    position: 'absolute',
+    bottom: -5,
+    zIndex: 0,
+    opacity: 0.1,
   },
   badgeName: {
     fontSize: 12,
     textAlign: 'center',
-    color: '#666',
+    color: '#ffffff',
+    bottom: -8,
   },
   optionContent: {
     flexDirection: 'row',

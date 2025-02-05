@@ -96,6 +96,9 @@ This collection stores user profile information.
     - `gamesWon` (number): Total games won by the user.
   - `userId` (string): The unique ID of the user.
   - `username` (string): The username of the user.
+  - `continentsTracked` (object): An object with keys for each continent
+     (e.g., Africa, Asia, Europe, North America, South America, Oceania) and 
+     values representing how many times the user has scored 100% on that continent.
 
 ---
 

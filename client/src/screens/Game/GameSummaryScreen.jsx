@@ -16,6 +16,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import countriesByContinent from '../../utils/countries_by_continent.json';
 // Import the country helpers for normalization and territory matching
 import { normalizeCountryName, getTerritoryMatch } from '../../utils/countryHelpers';
+// NEW: Import Firestore update functions and database
+import { updateDoc, increment, doc } from 'firebase/firestore';
+import { database } from '../../services/firebase';
+// NEW: Import the auth context to get currentUser
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * Displays a summary of the solo game:
@@ -88,6 +93,30 @@ export default function GameSummaryScreen() {
     console.log(`[${continent}] guessedCount: ${guessedCount}, total: ${total}, rawPercentage: ${(guessedCount / total) * 100}`);
     continentPercentages[continent] = isNaN(percentage) ? 0 : percentage;
   });
+
+  // NEW: Get current user from the Auth context
+  const { currentUser } = useAuth();
+
+  // NEW: When the summary screen mounts, update the user document for each continent at 100%
+  useEffect(() => {
+    if (!currentUser) return;
+    const updateContinentsTracked = async () => {
+      for (const continent of Object.keys(continentPercentages)) {
+        if (continentPercentages[continent] === 100) {
+          try {
+            await updateDoc(doc(database, 'users', currentUser.uid), {
+              // Using Firestore dot notation to update the specific continent count
+              [`continentsTracked.${continent}`]: increment(1)
+            });
+            console.log(`Incremented ${continent} count for user ${currentUser.uid}`);
+          } catch (error) {
+            console.error(`Error updating ${continent}:`, error);
+          }
+        }
+      }
+    };
+    updateContinentsTracked();
+  }, [currentUser]);
 
   // Animate the overall container: fade in + slight scale effect.
   const containerOpacity = useSharedValue(0);
@@ -251,6 +280,18 @@ export default function GameSummaryScreen() {
   const sortedContinents = Object.entries(continentPercentages)
     .sort(([, percentageA], [, percentageB]) => percentageB - percentageA)
     .map(([continent]) => continent);
+
+  // NEW: When the summary screen loses focus, reset navigation to the game selection screen.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      console.log('GameSummaryScreen lost focus. Resetting navigation to Game selection screen.');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Game' }],
+      });
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   return (
     <AnimatedLinearGradient 
