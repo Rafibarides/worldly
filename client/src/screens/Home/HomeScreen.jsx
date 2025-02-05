@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   badgesContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 10,
+    width: '100%',
   },
   badge: {
     backgroundColor: '#87c66b',

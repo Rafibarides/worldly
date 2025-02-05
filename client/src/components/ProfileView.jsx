@@ -253,9 +253,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 15,
   },
-  badgesSection: {
-    padding: 20,
-  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -274,6 +271,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
     width: 130,
     height: 150,
+    margin: 10,
   },
   badgeHero: {
     width: 30,

@@ -11,14 +11,20 @@ import {
 import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function FriendSearchScreen() {
   const { currentUser } = useAuth();
+  const navigation = useNavigation();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
   const [friendshipStatuses, setFriendshipStatuses] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const handleViewProfile = (user) => {
+    navigation.navigate('Profile', { profileUser: user, hideChallenge: true });
+  };
 
   const handleSearch = async (term) => {
     if (!term.trim()) {
@@ -89,7 +95,6 @@ export default function FriendSearchScreen() {
         requesterId: currentUser.uid,
         requesteeId: friend.uid,
       });
-      alert("Friend request sent!");
       setFriendshipStatuses(prev => ({ ...prev, [friend.uid]: "pending" }));
     } catch (err) {
       console.error("Error adding friend: ", err);
@@ -99,7 +104,6 @@ export default function FriendSearchScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Search Friends</Text>
       <TextInput
         style={styles.input}
         placeholder="Enter username"
@@ -118,17 +122,24 @@ export default function FriendSearchScreen() {
           const status = friendshipStatuses[item.uid];
           return (
             <View style={styles.resultItem}>
-              <Text style={styles.username}>{item.username}</Text>
-              {status === "pending" ? (
-                <TouchableOpacity style={styles.requestedButton} disabled={true}>
-                  <Text style={styles.requestedText}>Requested</Text>
-                </TouchableOpacity>
-              ) : status === "confirmed" ? (
-                null
-              ) : (
-                <TouchableOpacity onPress={() => handleAddFriend(item)} style={styles.addButton}>
+              <TouchableOpacity 
+                style={{ flex: 1 }}
+                onPress={() => handleViewProfile(item)}
+              >
+                <Text style={styles.username}>{item.username}</Text>
+              </TouchableOpacity>
+              { !status && (
+                <TouchableOpacity 
+                  style={styles.addButton} 
+                  onPress={() => handleAddFriend(item)}
+                >
                   <Text style={styles.addButtonText}>Add Friend</Text>
                 </TouchableOpacity>
+              )}
+              { status === "pending" && (
+                <View style={styles.statusContainer}>
+                  <Text style={styles.statusText}>Requested</Text>
+                </View>
               )}
             </View>
           );
@@ -143,6 +154,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
+    marginTop: 60,
   },
   title: {
     fontSize: 24,
@@ -170,9 +182,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    margin: 10,
   },
   username: {
     fontSize: 18,
+  },
+  statusText: {
+    color: '#aaa',
+    fontSize: 14,
+    paddingHorizontal: 10,
   },
   addButton: {
     backgroundColor: 'green',
@@ -184,14 +202,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
   },
-  requestedButton: {
-    backgroundColor: '#aaa',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-  },
-  requestedText: {
-    color: '#fff',
-    fontSize: 14,
+  statusContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
   },
 }); 

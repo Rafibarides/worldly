@@ -280,7 +280,7 @@ export default function GamePlayScreen({ route, navigation }) {
               { 
                 text: "Exit", 
                 style: "destructive",
-                onPress: () => navigation.navigate('Game')
+                onPress: () => navigation.replace('GameMain')
               }
             ]
           );

@@ -48,6 +48,11 @@ export function SearchStackNavigator() {
         component={FriendSearchScreen} 
         options={{ headerShown: false }}
       />
+      <SearchStack.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ title: 'Profile' }}
+      />
     </SearchStack.Navigator>
   );
 }
