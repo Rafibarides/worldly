@@ -111,6 +111,9 @@ export const countryVariations = {
   'saint kitts': 'saint kitts and nevis',
   'st kitts': 'saint kitts and nevis',
   'nevis': 'saint kitts and nevis',
+  'saint lucia': 'saint lucia',
+  'st lucia': 'saint lucia',
+  'saint lucia': 'st lucia',
   'saint kitts and nevis': 'saint kitts and nevis',
   'sao tome': 'são tomé and príncipe',
   'principe': 'são tomé and príncipe',
@@ -175,6 +178,10 @@ export const geoJSONNameMap = {
   'morocco': 'Morocco',
   'tanzenia': 'Tanzania',
   'south sudan': 'S. Sudan',
+  'saint lucia': 'St. Lucia',
+  'saint kitts': 'St. Kitts',
+  'saint lucia': 'st Lucia',
+  
 };
 
 // Helper function to normalize country names
