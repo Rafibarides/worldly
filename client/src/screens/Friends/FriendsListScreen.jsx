@@ -201,12 +201,17 @@ export default function FriendsListScreen({ navigation }) {
           renderItem={({ item }) => (
             <View style={styles.friendItem}>
               <View style={styles.userInfo}>
-                <Image
-                  style={styles.avatar}
-                  source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
-                />
                 <TouchableOpacity 
                   onPress={() => handleViewProfile(item)}
+                >
+                  <Image
+                    style={styles.avatar}
+                    source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleViewProfile(item)}
+                  style={{ marginLeft: 8 }}
                 >
                   <Text style={styles.username}>{item.username}</Text>
                 </TouchableOpacity>

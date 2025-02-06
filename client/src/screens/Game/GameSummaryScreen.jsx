@@ -19,8 +19,9 @@ import { normalizeCountryName, getTerritoryMatch } from '../../utils/countryHelp
 // NEW: Import Firestore update functions and database
 import { updateDoc, increment, doc } from 'firebase/firestore';
 import { database } from '../../services/firebase';
-// NEW: Import the auth context to get currentUser
+// NEW: Import the auth context to get currentUser and setCurrentUser
 import { useAuth } from '../../contexts/AuthContext';
+import calculateLevel from '../../utils/leveling';  // <-- New import for leveling
 
 /**
  * Displays a summary of the solo game:
@@ -94,8 +95,8 @@ export default function GameSummaryScreen() {
     continentPercentages[continent] = isNaN(percentage) ? 0 : percentage;
   });
 
-  // NEW: Get current user from the Auth context
-  const { currentUser } = useAuth();
+  // NEW: Get current user and setCurrentUser from the Auth context
+  const { currentUser, setCurrentUser, fetchCurrentUser } = useAuth();
 
   // NEW: When the summary screen mounts, update the user document for each continent at 100%
   useEffect(() => {
@@ -117,6 +118,33 @@ export default function GameSummaryScreen() {
     };
     updateContinentsTracked();
   }, [currentUser]);
+
+  // NEW: Leveling system update.
+  // This hook checks the user's gamesPlayed and recalculates their level.
+  // If the calculated level is higher than the current user.level, we update it in Firestore.
+  useEffect(() => {
+    async function objectiveLevelCheck() {
+      // Ensure that we have a valid user and stats.
+      if (!currentUser || !currentUser.stats) return;
+      // Fetch the most recent user data
+      const latestUser = await fetchCurrentUser();
+      // Calculate correct level based on the latest gamesPlayed count
+      const newLevel = calculateLevel(latestUser.stats.gamesPlayed);
+      // If the objective check finds the level is lower than what's implied by gamesPlayed, update Firestore and local state.
+      if (newLevel > latestUser.level) {
+        try {
+          await updateDoc(doc(database, 'users', latestUser.uid), { level: newLevel });
+          setCurrentUser({ ...latestUser, level: newLevel });
+          console.log(`Objective level check: User ${latestUser.uid} updated to level ${newLevel}`);
+        } catch (error) {
+          console.error("Objective level check failed: ", error);
+        }
+      } else {
+        console.log("Objective level check: No update needed");
+      }
+    }
+    objectiveLevelCheck();
+  }, []); // Run once on mount
 
   // Animate the overall container: fade in + slight scale effect.
   const containerOpacity = useSharedValue(0);
