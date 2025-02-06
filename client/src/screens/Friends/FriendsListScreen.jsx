@@ -21,6 +21,7 @@ export default function FriendsListScreen({ navigation }) {
   const [friends, setFriends] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
 
   // Fetch confirmed friendships from Firestore based on the logged in user.
   const fetchFriends = async () => {
@@ -84,6 +85,26 @@ export default function FriendsListScreen({ navigation }) {
     }, [currentUser])
   );
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchRequestCount = async () => {
+        try {
+          const friendshipsRef = collection(database, "friendships");
+          const q = query(
+            friendshipsRef,
+            where("requesteeId", "==", currentUser.uid),
+            where("status", "==", "pending")
+          );
+          const querySnapshot = await getDocs(q);
+          setRequestCount(querySnapshot.docs.length);
+        } catch (err) {
+          console.error("Error fetching friend request count: ", err);
+        }
+      };
+      fetchRequestCount();
+    }, [currentUser.uid])
+  );
+
   // Filter friends using a case insensitive search
   const filteredFriends = friends.filter(friend => {
     return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
@@ -98,7 +119,7 @@ export default function FriendsListScreen({ navigation }) {
 
   // Remove friend handler: Queries the confirmed friendship document
   // and deletes it from Firestore.
-  const handleRemoveFriend = async (friendUid) => {
+  const handleRemoveFriend = async (friendId) => {
     try {
       const friendshipsRef = collection(database, "friendships");
       // Query for the friendship where the current user is the requester
@@ -106,13 +127,13 @@ export default function FriendsListScreen({ navigation }) {
         friendshipsRef,
         where("status", "==", "confirmed"),
         where("requesterId", "==", currentUser.uid),
-        where("requesteeId", "==", friendUid)
+        where("requesteeId", "==", friendId)
       );
       // Query for the friendship where the current user is the requestee
       const q2 = query(
         friendshipsRef,
         where("status", "==", "confirmed"),
-        where("requesterId", "==", friendUid),
+        where("requesterId", "==", friendId),
         where("requesteeId", "==", currentUser.uid)
       );
       const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
@@ -124,7 +145,6 @@ export default function FriendsListScreen({ navigation }) {
       }
       if (friendshipDocSnap) {
         await deleteDoc(doc(database, "friendships", friendshipDocSnap.id));
-        alert("Friend removed!");
         // Refresh the friends list after removal.
         fetchFriends();
       } else {
@@ -132,7 +152,7 @@ export default function FriendsListScreen({ navigation }) {
       }
     } catch (err) {
       console.error("Error removing friend:", err);
-      alert("Error removing friend.");
+      // Alert removed as per user request.
     }
   };
 
@@ -142,29 +162,32 @@ export default function FriendsListScreen({ navigation }) {
   };
 
   // Add the new handler function inside your FriendsListScreen component:
-  const handleViewFriendProfile = (friend) => {
+  const handleViewProfile = (friend) => {
     navigation.navigate('Profile', { profileUser: friend });
   };
 
   return (
     <View style={styles.container}>
-      {/* Header with screen title and notifications button */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friends</Text>
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search friends..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
         <TouchableOpacity 
           style={styles.notificationButton}
           onPress={() => navigation.navigate('FriendRequests')}>
-          <MaterialIcons name="notifications" size={24} color="#000" />
+          <View style={styles.iconWrapper}>
+            <MaterialIcons name="notifications" size={24} color="#ffc268" />
+            {requestCount > 0 && <View style={styles.redDot} />}
+          </View>
         </TouchableOpacity>
       </View>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Search friends..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-
+      
+      {/* Small grey title placed under the search bar */}
+      <Text style={styles.sectionHeader}>Friends</Text>
+      
       {isLoading ? (
         <ActivityIndicator size="large" color="#0000ff" />
       ) : filteredFriends.length === 0 ? (
@@ -182,20 +205,24 @@ export default function FriendsListScreen({ navigation }) {
                   style={styles.avatar}
                   source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
                 />
-                <Text style={styles.username}>{item.username}</Text>
+                <TouchableOpacity 
+                  onPress={() => handleViewProfile(item)}
+                >
+                  <Text style={styles.username}>{item.username}</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.friendActions}>
                 <TouchableOpacity 
                   onPress={() => handleRemoveFriend(item.uid)} 
-                  style={styles.iconButton}
+                  style={styles.addButton}
                 >
-                  <MaterialIcons name="person-remove" size={24} color="red" />
+                  <MaterialIcons name="person-remove" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity 
                   onPress={() => handleChallengeFriend(item)} 
-                  style={styles.iconButton}
+                  style={styles.challengeButton}
                 >
-                  <MaterialIcons name="public" size={24} color="#000" />
+                  <Text style={styles.challengeButtonText}>Challenge</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -211,27 +238,31 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
+    marginTop: 60,
   },
-  header: {
+  searchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 50,
+    paddingHorizontal: 19,
+    paddingVertical: 16,
+    borderWidth: 0,
   },
   notificationButton: {
     padding: 8,
   },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 25,
-    padding: 10,
-    marginBottom: 16,
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 10,
+    marginBottom: 15,
+    paddingHorizontal: 5,
   },
   friendItem: {
     paddingVertical: 10,
@@ -247,13 +278,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 100,
     marginRight: 12,
+    backgroundColor: '#f0f0f0',
+    padding: 3,
   },
   username: {
     fontSize: 18,
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
@@ -265,5 +299,43 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     marginLeft: 8,
+  },
+  addButton: {
+    backgroundColor: '#f182b7',
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 5,
+    marginLeft: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  challengeButton: {
+    backgroundColor: '#ffc268',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  challengeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  iconWrapper: {
+    position: 'relative',
+  },
+  redDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'red',
   },
 }); 

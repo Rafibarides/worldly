@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Image,
 } from 'react-native';
 import {
   collection,
@@ -68,7 +69,7 @@ export default function FriendRequestsScreen() {
       await updateDoc(friendshipDocRef, {
         status: "confirmed",
       });
-      alert("Friend request accepted!");
+      // Friend request accepted silently; no alert needed.
       // Refresh friend requests after accepting one
       fetchFriendRequests();
     } catch (err) {
@@ -79,7 +80,7 @@ export default function FriendRequestsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Friend Requests</Text>
+      <Text style={styles.sectionHeader}>Friend Requests</Text>
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
       {error && <Text style={styles.errorText}>{error}</Text>}
       <FlatList
@@ -87,8 +88,17 @@ export default function FriendRequestsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.requestItem}>
-            <Text style={styles.username}>{item.requester.username}</Text>
-            <TouchableOpacity onPress={() => handleAccept(item.id)} style={styles.acceptButton}>
+            <View style={styles.userInfo}>
+              <Image
+                style={styles.avatar}
+                source={{ uri: item.requester.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+              />
+              <Text style={styles.username}>{item.requester.username}</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => handleAccept(item.id)} 
+              style={styles.acceptButton}
+            >
               <Text style={styles.acceptButtonText}>Accept</Text>
             </TouchableOpacity>
           </View>
@@ -104,11 +114,13 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 24,
+  sectionHeader: {
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 16,
-    textAlign: 'center',
+    color: '#666',
+    marginTop: 10,
+    marginBottom: 15,
+    paddingHorizontal: 5,
   },
   errorText: {
     color: 'red',
@@ -123,17 +135,32 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 100,
+    marginRight: 12,
+    backgroundColor: '#f0f0f0',
+    padding: 3,
+  },
   username: {
     fontSize: 18,
+    fontWeight: '600',
   },
   acceptButton: {
-    backgroundColor: 'green',
-    paddingVertical: 6,
+    backgroundColor: '#7dbc63',
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 5,
   },
   acceptButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 

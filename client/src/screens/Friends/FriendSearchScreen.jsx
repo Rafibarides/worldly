@@ -170,7 +170,7 @@ export default function FriendSearchScreen() {
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Enter username"
+        placeholder="Search..."
         value={searchTerm}
         onChangeText={(text) => {
           setSearchTerm(text);
@@ -271,6 +271,8 @@ const styles = StyleSheet.create({
   },
   username: {
     fontSize: 18,
+    fontWeight: '600',
+    color: '#000'
   },
   statusText: {
     color: '#aaa',
