@@ -6,7 +6,8 @@ import {
   TextInput, 
   TouchableOpacity, 
   FlatList,
-  ActivityIndicator 
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -149,7 +150,7 @@ export default function FriendsListScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header with screen title and notifications button */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Friends List</Text>
+        <Text style={styles.headerTitle}>Friends</Text>
         <TouchableOpacity 
           style={styles.notificationButton}
           onPress={() => navigation.navigate('FriendRequests')}>
@@ -176,13 +177,13 @@ export default function FriendsListScreen({ navigation }) {
           refreshing={refreshing}
           renderItem={({ item }) => (
             <View style={styles.friendItem}>
-              {/* Wrap the friend's username in a TouchableOpacity */}
-              <TouchableOpacity 
-                onPress={() => handleViewFriendProfile(item)} 
-                style={{ flex: 1 }}
-              >
+              <View style={styles.userInfo}>
+                <Image
+                  style={styles.avatar}
+                  source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+                />
                 <Text style={styles.username}>{item.username}</Text>
-              </TouchableOpacity>
+              </View>
               <View style={styles.friendActions}>
                 <TouchableOpacity 
                   onPress={() => handleRemoveFriend(item.uid)} 
@@ -239,6 +240,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
   username: {
     fontSize: 18,

@@ -51,6 +51,7 @@ export default function HomeScreen({ navigation }) {
       {/* Wrap the content in a ScrollView with pull-to-refresh */}
       <ScrollView 
         contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#75b35b',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 0.4 },
-    shadowOpacity: 0.20,
+    shadowOpacity: 0,
     shadowRadius: 1.6,
     elevation: 1,
   },

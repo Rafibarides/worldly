@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { mockBadges } from '../utils/mockData';
 
-export default function ProfileView({ user }) {
+export default function ProfileView({ user, friendshipStatus, onAddFriend, showChallenge }) {
   const navigation = useNavigation();
   const { currentUser } = useAuth();
   const isCurrentUser = currentUser && user && currentUser.uid === user.uid;
@@ -50,7 +50,7 @@ export default function ProfileView({ user }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* UPDATED HEADER ROW: Left corner displays settings (or challenge) and right corner displays level pill */}
       <View style={styles.headerRow}>
         <View style={styles.levelPill}>
@@ -80,7 +80,7 @@ export default function ProfileView({ user }) {
           />
           <Text style={styles.username}>{user?.username}</Text>
         </View>
-        {!isCurrentUser && (
+        {showChallenge ? (
           <TouchableOpacity 
             style={styles.challengeButton}
             onPress={() => navigation.navigate('Game', { challengedFriend: user })}
@@ -94,19 +94,27 @@ export default function ProfileView({ user }) {
             </View>
             <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
           </TouchableOpacity>
+        ) : friendshipStatus === "pending" ? (
+          <View style={styles.requestedButton}>
+            <MaterialIcons name="watch-later" size={24} color="#ffc268" />
+            <Text style={styles.requestedButtonText}>Requested</Text>
+          </View>
+        ) : friendshipStatus === "none" && (
+          <TouchableOpacity style={styles.addButton} onPress={onAddFriend}>
+            <MaterialIcons name="person-add" size={24} color="#ffc268" />
+            <Text style={styles.addButtonText}>Add Friend</Text>
+          </TouchableOpacity>
         )}
         
         {/* Stats Cards */}
         <View style={styles.statCard}>
           <View style={styles.statRow}>
-            <View style={styles.statContent}>
+            <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user?.stats?.gamesPlayed}</Text>
               <Text style={styles.statLabel}>Games Played</Text>
             </View>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statRow}>
-            <View style={styles.statContent}>
+            <View style={styles.verticalDivider} />
+            <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user?.stats?.gamesWon}</Text>
               <Text style={styles.statLabel}>Wins</Text>
             </View>
@@ -147,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 8,
-    marginBottom: 35,
+    marginBottom: 70,
   },
   settingsButton: {
     padding: 8,
@@ -177,7 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#75b35b',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 0.4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0,
     shadowRadius: 1.6,
     elevation: 1,
   },
@@ -200,40 +208,43 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   avatar: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
     borderRadius: 50,
-    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: '#aed69d',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    margin: 10,
   },
   statCard: {
     backgroundColor: 'rgba(177, 216, 138, 0.1)',
-    padding: 20,
+    padding: 10,
     borderRadius: 10,
-    alignItems: 'center',
-    width: '80%',
-    marginTop: 20,
+    width: '60%',
+    marginVertical: 20,
   },
   statRow: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    width: '100%',
-  },
-  statContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingVertical: 10,
   },
-  statDivider: {
-    height: 1,
-    width: '90%',
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  verticalDivider: {
+    width: 1,
+    height: '100%',
     backgroundColor: 'rgba(177, 216, 138, 0.3)',
-    marginVertical: 5,
+    marginHorizontal: 10,
   },
   statNumber: {
     fontSize: 24,
@@ -328,5 +339,44 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: 14,
     color: '#4f7a3a',
+  },
+  addButton: {
+    width: '40%',
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginVertical: 10,
+    paddingHorizontal: 20,
+    shadowColor: '#d2d2d2',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  addButtonText: {
+    fontWeight: 'bold',
+    color: '#4f7a3a',
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  requestedButton: {
+    width: '40%',
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginVertical: 10,
+    paddingHorizontal: 20,
+  },
+  requestedButtonText: {
+    fontWeight: 'bold',
+    color: 'grey',
+    fontSize: 16,
+    marginLeft: 10,
   },
 }); 

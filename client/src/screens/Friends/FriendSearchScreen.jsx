@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   FlatList,
+  Image,
+  RefreshControl,
 } from 'react-native';
-import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where, limit } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -18,20 +20,86 @@ export default function FriendSearchScreen() {
   const navigation = useNavigation();
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
+  const [recentUsers, setRecentUsers] = useState([]);
   const [friendshipStatuses, setFriendshipStatuses] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchRecentUsers();
+  }, []);
+
+  const fetchRecentUsers = async () => {
+    setLoading(true);
+    try {
+      const usersRef = collection(database, "users");
+      const q = query(
+        usersRef,
+        orderBy("createdAt", "desc"),
+        limit(11)
+      );
+      const querySnapshot = await getDocs(q);
+      const users = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.uid !== currentUser.uid) {
+          users.push(data);
+        }
+      });
+      setRecentUsers(users);
+      
+      if (users.length > 0) {
+        const friendIds = users.map(u => u.uid);
+        await fetchFriendshipStatuses(friendIds);
+      }
+    } catch (err) {
+      console.error("Error fetching recent users:", err);
+      setError("Error fetching recent users.");
+    }
+    setLoading(false);
+  };
+
+  const fetchFriendshipStatuses = async (friendIds) => {
+    const friendshipsRef = collection(database, "friendships");
+    const statuses = {};
+    const qSent = query(
+      friendshipsRef,
+      where("status", "in", ["pending", "confirmed"]),
+      where("requesterId", "==", currentUser.uid),
+      where("requesteeId", "in", friendIds)
+    );
+    const qReceived = query(
+      friendshipsRef,
+      where("status", "in", ["pending", "confirmed"]),
+      where("requesteeId", "==", currentUser.uid),
+      where("requesterId", "in", friendIds)
+    );
+    const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
+    snapshotSent.forEach(docSnap => {
+      const data = docSnap.data();
+      statuses[data.requesteeId] = data.status;
+    });
+    snapshotReceived.forEach(docSnap => {
+      const data = docSnap.data();
+      statuses[data.requesterId] = data.status;
+    });
+    setFriendshipStatuses(statuses);
+  };
 
   const handleViewProfile = (user) => {
-    navigation.navigate('Profile', { profileUser: user, hideChallenge: true });
+    const status = friendshipStatuses[user.uid];
+    const hideChallenge = status !== "confirmed";
+    navigation.navigate('Profile', { profileUser: user, hideChallenge });
   };
 
   const handleSearch = async (term) => {
     if (!term.trim()) {
       setResults([]);
-      setFriendshipStatuses({});
+      await fetchRecentUsers();
       return;
     }
+    setRecentUsers([]);
     setLoading(true);
     setError(null);
     try {
@@ -50,34 +118,20 @@ export default function FriendSearchScreen() {
           users.push(data);
         }
       });
+      users.sort((a, b) => {
+        const aUsername = a.username.toLowerCase();
+        const bUsername = b.username.toLowerCase();
+        const startsA = aUsername.startsWith(searchTermLower);
+        const startsB = bUsername.startsWith(searchTermLower);
+        if (startsA && !startsB) return -1;
+        if (!startsA && startsB) return 1;
+        return aUsername.localeCompare(bUsername);
+      });
       setResults(users);
 
       if (users.length > 0) {
         const friendIds = users.map(u => u.uid);
-        const friendshipsRef = collection(database, "friendships");
-        const statuses = {};
-        const qSent = query(
-          friendshipsRef,
-          where("status", "in", ["pending", "confirmed"]),
-          where("requesterId", "==", currentUser.uid),
-          where("requesteeId", "in", friendIds)
-        );
-        const qReceived = query(
-          friendshipsRef,
-          where("status", "in", ["pending", "confirmed"]),
-          where("requesteeId", "==", currentUser.uid),
-          where("requesterId", "in", friendIds)
-        );
-        const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
-        snapshotSent.forEach(docSnap => {
-          const data = docSnap.data();
-          statuses[data.requesteeId] = data.status;
-        });
-        snapshotReceived.forEach(docSnap => {
-          const data = docSnap.data();
-          statuses[data.requesterId] = data.status;
-        });
-        setFriendshipStatuses(statuses);
+        await fetchFriendshipStatuses(friendIds);
       } else {
         setFriendshipStatuses({});
       }
@@ -102,6 +156,16 @@ export default function FriendSearchScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (searchTerm.trim()) {
+      await handleSearch(searchTerm);
+    } else {
+      await fetchRecentUsers();
+    }
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -116,18 +180,41 @@ export default function FriendSearchScreen() {
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
       {error && <Text style={styles.errorText}>{error}</Text>}
       <FlatList
-        data={results}
+        data={searchTerm.trim() ? results : recentUsers}
         keyExtractor={(item) => item.uid}
+        extraData={friendshipStatuses}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor="transparent"
+            colors={["transparent"]}
+            progressBackgroundColor="transparent"
+            progressViewOffset={0}
+          />
+        }
+        ListHeaderComponent={!searchTerm.trim() && recentUsers.length > 0 ? (
+          <Text style={styles.sectionHeader}>Recently Joined</Text>
+        ) : null}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const status = friendshipStatuses[item.uid];
           return (
             <View style={styles.resultItem}>
-              <TouchableOpacity 
-                style={{ flex: 1 }}
-                onPress={() => handleViewProfile(item)}
-              >
-                <Text style={styles.username}>{item.username}</Text>
-              </TouchableOpacity>
+              <View style={styles.userInfo}>
+                <TouchableOpacity onPress={() => handleViewProfile(item)}>
+                  <Image
+                    style={styles.avatar}
+                    source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={{ flex: 1 }}
+                  onPress={() => handleViewProfile(item)}
+                >
+                  <Text style={styles.username}>{item.username}</Text>
+                </TouchableOpacity>
+              </View>
               { !status && (
                 <TouchableOpacity 
                   style={styles.addButton} 
@@ -159,7 +246,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 16,
     textAlign: 'center',
   },
   input: {
@@ -179,10 +265,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    margin: 10,
+    paddingVertical: 10,
   },
   username: {
     fontSize: 18,
@@ -193,8 +278,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   addButton: {
-    backgroundColor: 'green',
-    paddingVertical: 6,
+    backgroundColor: '#7dbc63',
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 5,
   },
@@ -205,6 +290,26 @@ const styles = StyleSheet.create({
   statusContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 100,
+    marginRight: 12,
+    backgroundColor: '#f0f0f0',
+    padding: 3,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 15,
+    marginTop: 10,
+    paddingHorizontal: 5,
   },
 }); 
