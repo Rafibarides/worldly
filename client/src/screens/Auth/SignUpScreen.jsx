@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -108,10 +108,14 @@ export default function SignUpScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign Up</Text>
+      <Image 
+        source={require('../../../assets/images/sign-up.png')}
+        style={styles.avatar}
+      />
       <TextInput
         style={styles.input}
         placeholder="Username"
+        placeholderTextColor="#fff"
         value={username}
         onChangeText={checkUsernameAvailability}
         autoCapitalize="none"
@@ -124,6 +128,7 @@ export default function SignUpScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#fff"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -131,6 +136,7 @@ export default function SignUpScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#fff"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -138,6 +144,7 @@ export default function SignUpScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Confirm Password"
+        placeholderTextColor="#fff"
         secureTextEntry
         value={confirmPassword}
         onChangeText={setConfirmPassword}
@@ -145,11 +152,10 @@ export default function SignUpScreen({ navigation }) {
       <TouchableOpacity
         onPress={handleSignup}
         style={styles.button}
-        // Disable if loading or username is not available
         disabled={loading || !usernameAvailable}
       >
         <Text style={styles.buttonText}>
-          {!loading ? 'SignUp' : 'Loading...'}
+          {!loading ? 'Sign Up' : 'Loading...'}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
@@ -162,33 +168,54 @@ export default function SignUpScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#7dbc63',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
+  avatar: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
+  },
   title: {
     fontSize: 24,
     marginBottom: 20,
+    color: '#fff',
   },
   input: {
     width: '80%',
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 8,
-    marginVertical: 5
+    borderRadius: 10,
+    padding: 15,
+    marginVertical: 5,
+    color: '#fff',
+    backgroundColor: '#86c56a',
   },
   button: {
-    backgroundColor: 'blue',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10
+    width: '40%',
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginVertical: 10,
+    paddingHorizontal: 20,
+    shadowColor: '#d2d2d2',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
   },
   buttonText: {
-    color: '#fff'
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffc268',
   },
   linkText: {
-    color: 'blue',
-    marginTop: 10
+    color: '#fff',
+    marginTop: 10,
   },
 });

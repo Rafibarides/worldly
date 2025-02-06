@@ -36,7 +36,7 @@ export default function ProfileSettingsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Profile Settings</Text>
+      <Text style={styles.header}>Settings</Text>
       <Text style={styles.label}>Current Password</Text>
       <TextInput 
         style={styles.input} 
@@ -80,40 +80,43 @@ export default function ProfileSettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    alignItems: 'flex-start',
     backgroundColor: '#fff',
+    padding: 40,
   },
   header: {
-    fontSize: 22,
-    fontWeight: '600',
-    marginVertical: 10,
+    fontSize: 24,
+    fontWeight: '700',
+    marginVertical: 20,
     alignSelf: 'center',
+    color: '#333',
   },
   label: {
-    marginTop: 10,
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#333',
+    fontSize: 16,
+    color: '#555',
+    marginTop: 15,
+    marginBottom: 5,
   },
   input: {
     width: '100%',
-    padding: 10,
-    marginTop: 5,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
+    borderColor: '#7dbc63',
+    borderRadius: 8,
+    fontSize: 16,
+    color: '#333',
   },
   updateButton: {
-    marginTop: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    backgroundColor: '#00cf75',
-    borderRadius: 6,
-    alignSelf: 'center',
+    marginTop: 10,
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#7dbc63',
+    borderRadius: 30,
   },
   updateButtonText: {
     color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
   },
   settingItem: {
@@ -122,7 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#eee',
     marginTop: 30,
   },
   settingContent: {
@@ -130,7 +133,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingText: {
-    fontSize: 16,
+    fontSize: 18,
     marginLeft: 15,
     color: '#333',
   },

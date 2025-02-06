@@ -50,7 +50,19 @@ export function FriendsNavigator() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Profile'
+          headerTitle: '',
+          headerBackTitleVisible: false,
+          headerLeft: ({ onPress }) => (
+            <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+              <MaterialIcons name="arrow-back-ios" size={24} color="#ffc268" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
         }}
       />
     </Stack.Navigator>
@@ -68,7 +80,21 @@ export function SearchStackNavigator() {
       <SearchStack.Screen 
         name="Profile" 
         component={ProfileScreen} 
-        options={{ title: 'Profile' }}
+        options={{
+          headerTitle: '',
+          headerBackTitleVisible: false,
+          headerLeft: ({ onPress }) => (
+            <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+              <MaterialIcons name="arrow-back-ios" size={24} color="#ffc268" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#fff',
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
+        }}
       />
     </SearchStack.Navigator>
   );
