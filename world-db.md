@@ -19,7 +19,7 @@ This collection stores data related to challenges between users.
 - **Fields**:
   - `challengedId` (string): The ID of the user being challenged.
   - `challengerId` (string): The ID of the user initiating the challenge.
-  - `status` (string): The status of the challenge (e.g., pending, accepted, completed).
+  - `status` (string): The status of the challenge (e.g. pending, accepted, completed).
 
 ---
 
