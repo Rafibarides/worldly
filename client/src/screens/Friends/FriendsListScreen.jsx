@@ -1,23 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Image
-} from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
-import { useAuth } from '../../contexts/AuthContext';
-import { database } from '../../services/firebase';
-import { useFocusEffect } from '@react-navigation/native';
+  Image,
+  Alert,
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  deleteDoc,
+  addDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { useAuth } from "../../contexts/AuthContext";
+import { database } from "../../services/firebase";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function FriendsListScreen({ navigation }) {
   const { currentUser } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [friends, setFriends] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,26 +42,31 @@ export default function FriendsListScreen({ navigation }) {
       const friendshipsRef = collection(database, "friendships");
       // Query friendships where the current user is the requester
       const q1 = query(
-        friendshipsRef, 
-        where("status", "==", "confirmed"), 
+        friendshipsRef,
+        where("status", "==", "confirmed"),
         where("requesterId", "==", currentUser.uid)
       );
       // Query friendships where the current user is the requestee
       const q2 = query(
-        friendshipsRef, 
-        where("status", "==", "confirmed"), 
+        friendshipsRef,
+        where("status", "==", "confirmed"),
         where("requesteeId", "==", currentUser.uid)
       );
-      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const [snapshot1, snapshot2] = await Promise.all([
+        getDocs(q1),
+        getDocs(q2),
+      ]);
 
       const friendshipDocs = [];
-      snapshot1.forEach(docSnap => friendshipDocs.push(docSnap));
-      snapshot2.forEach(docSnap => friendshipDocs.push(docSnap));
+      snapshot1.forEach((docSnap) => friendshipDocs.push(docSnap));
+      snapshot2.forEach((docSnap) => friendshipDocs.push(docSnap));
 
       // Extract friend IDs (depending on whether the current user is requester or requestee)
-      const friendIds = friendshipDocs.map(docSnap => {
+      const friendIds = friendshipDocs.map((docSnap) => {
         const data = docSnap.data();
-        return data.requesterId === currentUser.uid ? data.requesteeId : data.requesterId;
+        return data.requesterId === currentUser.uid
+          ? data.requesteeId
+          : data.requesterId;
       });
 
       // Remove duplicates (if any)
@@ -106,7 +123,7 @@ export default function FriendsListScreen({ navigation }) {
   );
 
   // Filter friends using a case insensitive search
-  const filteredFriends = friends.filter(friend => {
+  const filteredFriends = friends.filter((friend) => {
     return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -136,7 +153,10 @@ export default function FriendsListScreen({ navigation }) {
         where("requesterId", "==", friendId),
         where("requesteeId", "==", currentUser.uid)
       );
-      const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const [snapshot1, snapshot2] = await Promise.all([
+        getDocs(q1),
+        getDocs(q2),
+      ]);
       let friendshipDocSnap = null;
       if (!snapshot1.empty) {
         friendshipDocSnap = snapshot1.docs[0];
@@ -156,14 +176,44 @@ export default function FriendsListScreen({ navigation }) {
     }
   };
 
-  // Challenge friend handler: Navigates to the 'Game' screen and passes the friend as a parameter.
-  const handleChallengeFriend = (friend) => {
-    navigation.navigate('Game', { challengedFriend: friend });
+  // Challenge friend handler: Creates a challenge record and navigates to PendingRoom
+  const handleChallengeFriend = async (friend) => {
+    try {
+      // Create the challenge document
+      const challengesRef = collection(database, "challenges");
+      const newChallengeRef = await addDoc(challengesRef, {
+        challengerId: currentUser.uid,
+        challengedId: friend.uid,
+        status: "pending",
+        scoreList: [
+          { score: 0, uid: currentUser.uid },
+          { score: 0, uid: friend.uid },
+        ],
+        country: [],
+        createdAt: serverTimestamp(),
+        gameId: `${currentUser.uid}_${friend.uid}_${Date.now()}`,
+        challengerJoined: true, // Mark that the challenger is in the pending room
+      });
+      // Update the challenge document with its own ID
+      await updateDoc(newChallengeRef, { challengeId: newChallengeRef.id });
+
+      // Navigate using the correct stack
+      navigation.navigate("Game", {
+        screen: "PendingRoom",
+        params: {
+          challengedFriend: friend,
+          challengeId: newChallengeRef.id,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating challenge:", error);
+      Alert.alert("Error", "Failed to create challenge. Please try again.");
+    }
   };
 
   // Add the new handler function inside your FriendsListScreen component:
   const handleViewProfile = (friend) => {
-    navigation.navigate('Profile', { profileUser: friend });
+    navigation.navigate("Profile", { profileUser: friend });
   };
 
   return (
@@ -175,19 +225,20 @@ export default function FriendsListScreen({ navigation }) {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.notificationButton}
-          onPress={() => navigation.navigate('FriendRequests')}>
+          onPress={() => navigation.navigate("FriendRequests")}
+        >
           <View style={styles.iconWrapper}>
             <MaterialIcons name="notifications" size={24} color="#ffc268" />
             {requestCount > 0 && <View style={styles.redDot} />}
           </View>
         </TouchableOpacity>
       </View>
-      
+
       {/* Small grey title placed under the search bar */}
       <Text style={styles.sectionHeader}>Friends</Text>
-      
+
       {isLoading ? (
         <ActivityIndicator size="large" color="#0000ff" />
       ) : filteredFriends.length === 0 ? (
@@ -201,15 +252,17 @@ export default function FriendsListScreen({ navigation }) {
           renderItem={({ item }) => (
             <View style={styles.friendItem}>
               <View style={styles.userInfo}>
-                <TouchableOpacity 
-                  onPress={() => handleViewProfile(item)}
-                >
+                <TouchableOpacity onPress={() => handleViewProfile(item)}>
                   <Image
                     style={styles.avatar}
-                    source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+                    source={{
+                      uri:
+                        item.avatarUrl ||
+                        "https://api.dicebear.com/9.x/avataaars/png?seed=default",
+                    }}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => handleViewProfile(item)}
                   style={{ marginLeft: 8 }}
                 >
@@ -217,14 +270,14 @@ export default function FriendsListScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               <View style={styles.friendActions}>
-                <TouchableOpacity 
-                  onPress={() => handleRemoveFriend(item.uid)} 
+                <TouchableOpacity
+                  onPress={() => handleRemoveFriend(item.uid)}
                   style={styles.addButton}
                 >
                   <MaterialIcons name="person-remove" size={24} color="#fff" />
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={() => handleChallengeFriend(item)} 
+                <TouchableOpacity
+                  onPress={() => handleChallengeFriend(item)}
                   style={styles.challengeButton}
                 >
                   <Text style={styles.challengeButtonText}>Challenge</Text>
@@ -242,17 +295,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     marginTop: 60,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   searchInput: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     borderRadius: 50,
     paddingHorizontal: 19,
     paddingVertical: 16,
@@ -263,8 +316,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
+    fontWeight: "bold",
+    color: "#666",
     marginTop: 10,
     marginBottom: 15,
     paddingHorizontal: 5,
@@ -272,14 +325,14 @@ const styles = StyleSheet.create({
   friendItem: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderBottomColor: "#eee",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   avatar: {
@@ -287,60 +340,60 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 100,
     marginRight: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     padding: 3,
   },
   username: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   emptyText: {
-    textAlign: 'center',
-    color: '#666',
+    textAlign: "center",
+    color: "#666",
     marginTop: 20,
   },
   friendActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   iconButton: {
     marginLeft: 8,
   },
   addButton: {
-    backgroundColor: '#f182b7',
+    backgroundColor: "#f182b7",
     paddingVertical: 6,
     paddingHorizontal: 6,
     borderRadius: 5,
     marginLeft: 8,
   },
   addButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   challengeButton: {
-    backgroundColor: '#ffc268',
+    backgroundColor: "#ffc268",
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 5,
     marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   challengeButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   iconWrapper: {
-    position: 'relative',
+    position: "relative",
   },
   redDot: {
-    position: 'absolute',
+    position: "absolute",
     top: -2,
     right: -2,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'red',
+    backgroundColor: "red",
   },
-}); 
+});

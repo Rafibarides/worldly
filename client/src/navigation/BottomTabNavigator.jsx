@@ -20,6 +20,7 @@ import FriendsListScreen from '../screens/Friends/FriendsListScreen';
 import AboutScreen from '../screens/About/AboutScreen'; // Using this as "Logs" for now
 import LogsScreen from '../screens/Logs/LogsScreen';
 import BadgesListScreen from '../screens/Badges/BadgesListScreen';
+import PendingRoomScreen from '../screens/Game/PendingRoomScreen';  // Add this import
 
 // NEW import for the settings screen
 import ProfileSettingsScreen from '../screens/Settings/ProfileSettingsScreen';
@@ -81,26 +82,13 @@ function FriendsStackNavigator() {
 function GameStackNavigator() {
   return (
     <GameStack.Navigator>
+      <GameStack.Screen name="GameMain" component={GameScreen} />
+      <GameStack.Screen name="GamePlay" component={GamePlayScreen} />
+      <GameStack.Screen name="GameSummary" component={GameSummaryScreen} />
       <GameStack.Screen 
-        name="GameMain" 
-        component={GameScreen}
-        options={{ headerShown: false }}
-      />
-      <GameStack.Screen 
-        name="GamePlay" 
-        component={GamePlayScreen}
-        options={{ 
-          headerShown: false,
-          gestureEnabled: false // Prevent swipe back during game
-        }}
-      />
-      <GameStack.Screen 
-        name="GameSummary" 
-        component={GameSummaryScreen}
-        options={{ 
-          headerShown: false,
-          gestureEnabled: false
-        }}
+        name="PendingRoom" 
+        component={PendingRoomScreen}
+        options={{ headerShown: true, title: 'Pending Challenge' }}
       />
     </GameStack.Navigator>
   );

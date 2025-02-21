@@ -5,7 +5,9 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView,
-  ActivityIndicator 
+  ActivityIndicator,
+  Alert,
+  FlatList
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockGameSettings } from '../../utils/mockData';
@@ -19,8 +21,15 @@ import Animated, {
   withSpring
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../../contexts/AuthContext';
+import { updateDoc, doc, collection, query, where, onSnapshot, getDoc, orderBy, limit } from 'firebase/firestore';
+import { database } from '../../services/firebase';
+import { useNavigation } from '@react-navigation/native';
 
-export default function GameScreen({ navigation }) {
+export default function GameScreen() {
+  const { currentUser } = useAuth();
+  const navigation = useNavigation();
+
   const [isLoading, setIsLoading] = useState(false);
 
   const headerFade = useSharedValue(1);
@@ -126,6 +135,108 @@ export default function GameScreen({ navigation }) {
     };
   });
 
+  // NEW: State for challenge requests and toggle visibility.
+  const [challengeRequests, setChallengeRequests] = useState([]);
+  const [showChallengeRequests, setShowChallengeRequests] = useState(false);
+
+  // UPDATED: Fetch incoming challenge requests and also fetch challenger details
+  useEffect(() => {
+    if (currentUser) {
+      const challengesRef = collection(database, "challenges");
+      
+      // Query for challenges where currentUser is challenged.
+      const qChallenged = query(
+        challengesRef,
+        where("challengedId", "==", currentUser.uid),
+        where("status", "==", "pending")
+      );
+      
+      // Query for challenges where currentUser is the challenger.
+      const qChallenger = query(
+        challengesRef,
+        where("challengerId", "==", currentUser.uid),
+        where("status", "==", "pending")
+      );
+      
+      let challengedRequests = [];
+      let challengerRequests = [];
+      
+      const unsubscribeChallenged = onSnapshot(qChallenged, (snapshot) => {
+        (async () => {
+          challengedRequests = await Promise.all(
+            snapshot.docs.map(async (docSnap) => {
+              const data = docSnap.data();
+              // For challenges where you are challenged, your opponent is the challenger.
+              const opponentId = data.challengerId;
+              const opponentRef = doc(database, "users", opponentId);
+              const opponentSnap = await getDoc(opponentRef);
+              const opponentData = opponentSnap.exists() ? opponentSnap.data() : { username: "Unknown", avatarUrl: '' };
+              return { id: docSnap.id, ...data, opponent: opponentData };
+            })
+          );
+          const merged = [...challengedRequests, ...challengerRequests]
+                            .sort((a, b) => b.createdAt - a.createdAt);
+          setChallengeRequests(merged.slice(0, 4));
+        })();
+      });
+      
+      const unsubscribeChallenger = onSnapshot(qChallenger, (snapshot) => {
+        (async () => {
+          challengerRequests = await Promise.all(
+            snapshot.docs.map(async (docSnap) => {
+              const data = docSnap.data();
+              // For challenges where you are the challenger, your opponent is the challenged friend.
+              const opponentId = data.challengedId;
+              const opponentRef = doc(database, "users", opponentId);
+              const opponentSnap = await getDoc(opponentRef);
+              const opponentData = opponentSnap.exists() ? opponentSnap.data() : { username: "Unknown", avatarUrl: '' };
+              return { id: docSnap.id, ...data, opponent: opponentData };
+            })
+          );
+          const merged = [...challengedRequests, ...challengerRequests]
+                            .sort((a, b) => b.createdAt - a.createdAt);
+          setChallengeRequests(merged.slice(0, 4));
+        })();
+      });
+      
+      return () => {
+        unsubscribeChallenged();
+        unsubscribeChallenger();
+      };
+    }
+  }, [currentUser]);
+
+  // NEW: Handler to accept a challenge request.
+  const handleAcceptChallenge = async (challengeItem) => {
+    try {
+      const challengeRef = doc(database, "challenges", challengeItem.id);
+      // For a challenged user, update the flag indicating they've joined.
+      await updateDoc(challengeRef, { challengedJoined: true });
+      // Navigate to the PendingRoom screen passing your opponent's details.
+      navigation.navigate('PendingRoom', {
+        challengedFriend: challengeItem.opponent,
+        challengeId: challengeItem.id,
+      });
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      Alert.alert("Error", "Failed to accept challenge. Please try again.");
+    }
+  };
+
+  // New handler for challengers rejoining an active challenge.
+  const handleRejoinChallenge = async (challengeItem) => {
+    try {
+      // For rejoining, simply navigate back to the PendingRoom with the relevant challenge.
+      navigation.navigate('PendingRoom', {
+        challengedFriend: challengeItem.opponent,
+        challengeId: challengeItem.id,
+      });
+    } catch (error) {
+      console.error("Error rejoining challenge:", error);
+      Alert.alert("Error", "Failed to rejoin challenge. Please try again.");
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -204,6 +315,51 @@ export default function GameScreen({ navigation }) {
             </View>
           </View>
         </View>
+
+        {/* NEW: Floating Challenge Requests Button */}
+        <TouchableOpacity
+          style={styles.challengeRequestsButton}
+          onPress={() => setShowChallengeRequests(!showChallengeRequests)}
+        >
+          <MaterialIcons name="notifications" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        {/* NEW: Challenge Requests List */}
+        {showChallengeRequests && (
+          <View style={styles.challengeRequestsContainer}>
+            <Text style={styles.challengeRequestsHeader}>Incoming Challenges</Text>
+            {challengeRequests.length === 0 ? (
+              <Text style={styles.noRequestsText}>No challenge requests</Text>
+            ) : (
+              <FlatList
+                data={challengeRequests}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <View style={styles.requestItem}>
+                    <Text style={styles.requestText}>
+                      {item.opponent?.username || "Unknown"} challenges you!
+                    </Text>
+                    { currentUser.uid === item.challengerId ? (
+                      item.challengedJoined ? (
+                        <TouchableOpacity style={styles.acceptButton} onPress={() => handleRejoinChallenge(item)}>
+                          <Text style={styles.acceptButtonText}>Rejoin Challenge</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={[styles.acceptButton, { backgroundColor: 'grey' }]}>
+                          <Text style={styles.acceptButtonText}>Waiting for opponent</Text>
+                        </View>
+                      )
+                    ) : (
+                      <TouchableOpacity style={styles.acceptButton} onPress={() => handleAcceptChallenge(item)}>
+                        <Text style={styles.acceptButtonText}>Accept Challenge</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              />
+            )}
+          </View>
+        )}
       </ScrollView>
     </LinearGradient>
   );
@@ -344,5 +500,59 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 5,
+  },
+  // NEW: Style for the challenge requests button (floating in the top right)
+  challengeRequestsButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: '#4f7a3a',
+    padding: 10,
+    borderRadius: 25,
+    zIndex: 100,
+  },
+  // NEW: Styles for the challenge requests container
+  challengeRequestsContainer: {
+    position: 'absolute',
+    top: 80,
+    right: 20,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 10,
+    width: 250,
+    maxHeight: 300,
+    elevation: 5,
+    zIndex: 100,
+  },
+  challengeRequestsHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  noRequestsText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  requestItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  requestText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  acceptButton: {
+    backgroundColor: '#49b3f5',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontSize: 14,
   },
 }); 
