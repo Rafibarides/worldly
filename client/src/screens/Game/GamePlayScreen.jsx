@@ -150,24 +150,45 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   }, [gameType, currentUser, guessedCountries]);
 
-  // ------------------------------
-  // UPDATE: Timer useEffect - Only end game locally for solo games.
+  // First, create a separate effect for handling game end navigation
+  useEffect(() => {
+    if (timeLeft === 0) {
+      if (gameType === "solo") {
+        handleGameEnd();
+      } else if (gameType === "multiplayer" && gameData?.scoreList?.length > 0) {
+        const myEntry = gameData.scoreList.find(entry => entry.uid === currentUser.uid);
+        const opponentEntry = gameData.scoreList.find(entry => entry.uid !== currentUser.uid);
+        const myScore = myEntry ? myEntry.score : 0;
+        const opponentScore = opponentEntry ? opponentEntry.score : 0;
+
+        let result = "Tied";
+        if (myScore > opponentScore) {
+          result = "Winner";
+        } else if (myScore < opponentScore) {
+          result = "Loser";
+        }
+
+        setTimeout(() => {
+          navigation.replace("GameSummary", {
+            result,
+            gameData,
+            gameType: "multiplayer",
+            finalScore: myScore,
+            opponentScore,
+            totalCountries: recognizedCountries.recognized_countries.length,
+            guessedCountries: guessedCountriesRef.current
+          });
+        }, 0);
+      }
+    }
+  }, [timeLeft, gameType, gameData, currentUser?.uid, navigation]);
+
+  // Then modify the timer effect to only handle countdown
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
+      setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          if (gameType === "solo") {
-            // Solo game calls the handleGameEnd to process results.
-            setTimeout(() => {
-              handleGameEnd();
-            }, 0);
-          } else {
-            // For multiplayer, we wait for the server's "gameOver" event to finalize the game.
-            console.log(
-              "Multiplayer timer reached 0; waiting for server gameOver event."
-            );
-          }
           return 0;
         }
         return prev - 1;
@@ -175,27 +196,7 @@ export default function GamePlayScreen({ route, navigation }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [gameType]);
-
-  // ------------------------------
-  // NEW useEffect: Listen for "gameOver" event from the server in multiplayer.
-  useEffect(() => {
-    if (gameType === "multiplayer") {
-      const handleGameOver = ({ winnerUserId, gameResults }) => {
-        // Navigate to the GameSummary screen with the results received from the server.
-        navigation.replace("GameSummary", {
-          gameType,
-          isWinner: currentUser && winnerUserId === currentUser.uid,
-          gameResults, // Contains details like final scores, guessed countries, time used etc.
-        });
-      };
-
-      socket.on("gameOver", handleGameOver);
-      return () => {
-        socket.off("gameOver", handleGameOver);
-      };
-    }
-  }, [gameType, currentUser, navigation]);
+  }, []);
 
   // Listen for opponent's correct guess events on the correct event name "countryGuessedUpdate"
   useEffect(() => {
@@ -383,24 +384,23 @@ export default function GamePlayScreen({ route, navigation }) {
   };
 
   const handleGameEnd = async () => {
-    // Increment the user's gamesPlayed field when the game is completed
     try {
       await updateDoc(doc(database, "users", currentUser.uid), {
         "stats.gamesPlayed": increment(1),
       });
-      // Immediately refetch user data to ensure the latest stats are loaded
       await fetchCurrentUser();
+      
+      setTimeout(() => {
+        navigation.replace("GameSummary", {
+          finalScore: scoreRef.current,
+          totalCountries: recognizedCountries.recognized_countries.length,
+          guessedCountries: guessedCountriesRef.current,
+          gameType: "solo"
+        });
+      }, 0);
     } catch (error) {
       console.error("Error updating gamesPlayed:", error);
     }
-
-    if (gameType === "solo") {
-      navigation.replace("GameSummary", {
-        finalScore: scoreRef.current,
-        totalCountries: recognizedCountries.recognized_countries.length,
-        guessedCountries: guessedCountriesRef.current,
-      });
-    } else navigation.replace("GameSummary");
   };
 
   const formatTime = (seconds) => {
@@ -438,6 +438,24 @@ export default function GamePlayScreen({ route, navigation }) {
     return [];
   }, [containerHeight, mapWidth]);
 
+  const handleExitGame = () => {
+    Alert.alert(
+      "Exit Game",
+      "Are you sure you want to exit? Your progress will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Exit",
+          style: "destructive",
+          onPress: () => navigation.reset({
+            index: 0,
+            routes: [{ name: 'Game' }],
+          }),
+        },
+      ]
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: 60 }]}
@@ -446,20 +464,7 @@ export default function GamePlayScreen({ route, navigation }) {
     >
       <TouchableOpacity
         style={styles.exitButton}
-        onPress={() => {
-          Alert.alert(
-            "Exit Game",
-            "Are you sure you want to exit? Your progress will be lost.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Exit",
-                style: "destructive",
-                onPress: () => navigation.replace("GameMain"),
-              },
-            ]
-          );
-        }}
+        onPress={handleExitGame}
       >
         <MaterialIcons name="arrow-back-ios" size={24} color="#666" />
       </TouchableOpacity>
@@ -474,7 +479,7 @@ export default function GamePlayScreen({ route, navigation }) {
           gameData?.scoreList?.map((e) => {
             let isCur = e.uid == currentUser.uid;
             return (
-              <View>
+              <View key={e.uid}>
                 <AnimatedText
                   style={[
                     styles.score,

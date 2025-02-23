@@ -255,13 +255,10 @@ export default function GameScreen() {
 
   return (
     <LinearGradient
-      colors={["#70ab51", "#7dbc63", "#70ab51"]}
-      locations={[0, 0.5, 0.06]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 0.06, y: 0.5 }}
-      style={styles.container}
+      colors={["#b1d88a", "#87c66b"]}
+      style={{ flex: 1 }}
     >
-      <ScrollView contentContainerStyle={styles.contentContainer}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.titlePill}>
             <Animated.Image
@@ -272,39 +269,40 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* Solo Game Option */}
-        <AnimatedTouchableOpacity
-          activeOpacity={1}
-          style={[styles.gameOption, animatedSoloOptionStyle]}
-          onPress={handleStartSoloGame}
-        >
-          <View style={styles.optionContent}>
-            <MaterialIcons name="person" size={32} color="#ffc268" />
-            <View style={styles.optionText}>
-              <Text style={styles.optionTitle}>Solo Game</Text>
-              <Text style={styles.optionDescription}>Timed</Text>
+        {/* Game options */}
+        <View style={styles.contentContainer}>
+          <AnimatedTouchableOpacity
+            style={[styles.gameOption, animatedSoloOptionStyle]}
+            onPress={handleStartSoloGame}
+            disabled={isLoading}
+          >
+            <View style={styles.optionContent}>
+              <MaterialIcons name="person" size={32} color="#ffc268" />
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Solo Game</Text>
+                <Text style={styles.optionDescription}>Timed</Text>
+              </View>
             </View>
-          </View>
-          <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
-        </AnimatedTouchableOpacity>
+            <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
+          </AnimatedTouchableOpacity>
 
-        {/* Multiplayer Game Option */}
-        <AnimatedTouchableOpacity
-          activeOpacity={1}
-          style={[styles.gameOption, animatedMultiOptionStyle]}
-          onPress={handleStartMultiplayerGame}
-        >
-          <View style={styles.optionContent}>
-            <MaterialIcons name="groups" size={32} color="#ffc268" />
-            <View style={styles.optionText}>
-              <Text style={styles.optionTitle}>Multiplayer Game</Text>
-              <Text style={styles.optionDescription}>Compete with friends</Text>
+          <AnimatedTouchableOpacity
+            style={[styles.gameOption, animatedMultiOptionStyle]}
+            onPress={handleStartMultiplayerGame}
+            disabled={isLoading}
+          >
+            <View style={styles.optionContent}>
+              <MaterialIcons name="groups" size={32} color="#ffc268" />
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Multiplayer Game</Text>
+                <Text style={styles.optionDescription}>Compete with friends</Text>
+              </View>
             </View>
-          </View>
-          <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
-        </AnimatedTouchableOpacity>
+            <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
+          </AnimatedTouchableOpacity>
+        </View>
 
-        {/* Game Settings Info */}
+        {/* Settings info */}
         <View style={styles.settingsInfo}>
           <Text style={styles.settingsTitle}>Game Settings</Text>
           <View style={styles.settingCardsContainer}>
@@ -323,70 +321,46 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* NEW: Floating Challenge Requests Button */}
+        {/* Challenge Requests Button */}
         <TouchableOpacity
           style={styles.challengeRequestsButton}
           onPress={() => setShowChallengeRequests(!showChallengeRequests)}
         >
           <MaterialIcons name="notifications" size={24} color="#fff" />
+          {challengeRequests.length > 0 && <View style={styles.challengeDot} />}
         </TouchableOpacity>
 
-        {/* NEW: Challenge Requests List */}
+        {/* Challenge Requests List */}
         {showChallengeRequests && (
           <View style={styles.challengeRequestsContainer}>
-            <Text style={styles.challengeRequestsHeader}>
-              Incoming Challenges
-            </Text>
+            <Text style={styles.challengeRequestsHeader}>Incoming Challenges</Text>
             {challengeRequests.length === 0 ? (
-              <Text style={styles.noRequestsText}>No challenge requests</Text>
+              <Text style={styles.noRequestsText}>No pending challenges</Text>
             ) : (
               <FlatList
                 data={challengeRequests}
-                keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <View style={styles.requestItem}>
                     <Text style={styles.requestText}>
-                      {item.opponent?.username || "Unknown"} challenges you!
+                      {item.opponent?.username || "Unknown"}
                     </Text>
-                    {currentUser.uid === item.challengerId ? (
-                      item.challengedJoined ? (
-                        <TouchableOpacity
-                          style={styles.acceptButton}
-                          onPress={() => handleRejoinChallenge(item)}
-                        >
-                          <Text style={styles.acceptButtonText}>
-                            Rejoin Challenge
-                          </Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <View
-                          style={[
-                            styles.acceptButton,
-                            { backgroundColor: "grey" },
-                          ]}
-                        >
-                          <Text style={styles.acceptButtonText}>
-                            Waiting for opponent
-                          </Text>
-                        </View>
-                      )
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.acceptButton}
-                        onPress={() => handleAcceptChallenge(item)}
-                      >
-                        <Text style={styles.acceptButtonText}>
-                          Accept Challenge
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      style={styles.acceptButton}
+                      onPress={() => handleAcceptChallenge(item)}
+                    >
+                      <Text style={styles.acceptButtonText}>Accept</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={true}
+                nestedScrollEnabled={true}
+                style={{ maxHeight: 200 }}
               />
             )}
           </View>
         )}
-      </ScrollView>
+      </View>
     </LinearGradient>
   );
 }
@@ -580,5 +554,15 @@ const styles = StyleSheet.create({
   acceptButtonText: {
     color: "#fff",
     fontSize: 14,
+  },
+  challengeDot: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "red",
+    borderColor: "#fff",
   },
 });

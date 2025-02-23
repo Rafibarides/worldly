@@ -33,9 +33,15 @@ export default function GameSummaryScreen() {
   const route = useRoute();
   const navigation = useNavigation();
 
-  // These are passed from GamePlayScreen when the game ends;
-  // guessedCountries should be an array of normalized strings.
-  const { finalScore, totalCountries, guessedCountries = [] } = route.params || {};
+  // Add result to the destructured params
+  const { 
+    finalScore, 
+    totalCountries, 
+    guessedCountries = [], 
+    gameType,
+    result, // "Winner", "Loser", or "Tied"
+    opponentScore 
+  } = route.params || {};
 
   // Fixed totals for each continent as provided:
   const fixedContinentTotals = {
@@ -321,6 +327,20 @@ export default function GameSummaryScreen() {
     return unsubscribe;
   }, [navigation]);
 
+  // Add styles for the result banner
+  const getResultStyle = () => {
+    switch(result) {
+      case "Winner":
+        return styles.winnerBanner;
+      case "Loser":
+        return styles.loserBanner;
+      case "Tied":
+        return styles.tieBanner;
+      default:
+        return {};
+    }
+  };
+
   return (
     <AnimatedLinearGradient 
       colors={['#70ab51', '#7dbc63', '#70ab51']}
@@ -337,6 +357,19 @@ export default function GameSummaryScreen() {
           />
           <Text style={styles.titleText}>Game Review</Text>
         </View>
+        {/* Add Result Banner for multiplayer games */}
+        {gameType === "multiplayer" && (
+          <View style={[styles.resultBanner, getResultStyle()]}>
+            <Text style={styles.resultText}>
+              {result === "Winner" && "Victory! 🏆"}
+              {result === "Loser" && "Better luck next time! 😔"}
+              {result === "Tied" && "It's a tie! 🤝"}
+            </Text>
+            <Text style={styles.scoreText}>
+              Your Score: {finalScore} | Opponent's Score: {opponentScore}
+            </Text>
+          </View>
+        )}
         <Text style={styles.scoreText}>
           Total: {finalScore} / {totalCountries} countries
         </Text>
@@ -502,5 +535,32 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
+  },
+  resultBanner: {
+    width: '100%',
+    padding: 20,
+    marginBottom: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  winnerBanner: {
+    backgroundColor: '#4CAF50',
+  },
+  loserBanner: {
+    backgroundColor: '#f44336',
+  },
+  tieBanner: {
+    backgroundColor: '#FF9800',
+  },
+  resultText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  scoreText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 
