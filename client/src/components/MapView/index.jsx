@@ -1,7 +1,7 @@
 import React from "react";
 import { feature } from "topojson-client";
 import Svg, { Path } from "react-native-svg";
-import { View, ScrollView } from "react-native";
+import { View, ScrollView, Text } from "react-native";
 import worldData from "../../../assets/geojson/ne_50m_admin_0_countries.json";
 
 let geoJSON;
@@ -18,13 +18,14 @@ const filteredWorldData = {
 };
 
 export default function MapView({
-  guessedCountries = [],
   onContainerLayout,
   gameDataCountry,
   countryPaths,
   currentUid,
   containerHeight,
   mapWidth,
+  guessedCountries,
+  gameType,
 }) {
   return (
     <View style={{ flex: 1 }} onLayout={onContainerLayout}>
@@ -43,20 +44,30 @@ export default function MapView({
           preserveAspectRatio="xMidYMid meet"
         >
           {countryPaths.map((d, index) => {
-            // Find the feature name from the path
+            // Find the feature name from the path and normalize it
             const featureName =
               filteredWorldData.features[index].properties.NAME.toLowerCase();
-            // If it's guessed, fill with #4bd670; else pastel yellow
-            const fillColorCheck = guessedCountries.includes(featureName);
-            let isMyGuess = gameDataCountry?.find(
-              (e) => e.country == featureName
-            );
-
-            const fillColor = fillColorCheck
-              ? isMyGuess?.uid === currentUid
+            let fillColor;
+            if (gameType === "solo") {
+              // In solo mode, check if the guessedCountries array includes this country name
+              fillColor = guessedCountries.includes(featureName)
                 ? "#4bd670"
-                : "tomato"
-              : "#FFF9C4";
+                : "#FFF9C4";
+            } else {
+              // Multiplayer logic as before
+              let isMyGuess = gameDataCountry?.filter(
+                (e) => e.country.toLowerCase() === featureName
+              );
+              let guessMine =
+                isMyGuess && (isMyGuess.length > 1
+                  ? isMyGuess.find((e) => e.uid == currentUid)
+                  : isMyGuess[0]);
+              fillColor = guessMine?.uid
+                ? guessMine.uid === currentUid
+                  ? "#4bd670"
+                  : "blue"
+                : "#FFF9C4";
+            }
             return (
               <Path
                 key={`country-${index}`}

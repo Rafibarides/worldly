@@ -26,17 +26,11 @@ import {
   getTerritoriesForCountry,
 } from "../../utils/countryHelpers";
 import recognizedCountries from "../../utils/recognized_countries.json";
-import {
-  updateDoc,
-  increment,
-  doc,
-  setDoc,
-  onSnapshot,
-} from "firebase/firestore";
+import { updateDoc, increment, doc, onSnapshot } from "firebase/firestore";
 import { database } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import socket from "../../services/socket";
-import { geoPath, geoNaturalEarth1 } from 'd3-geo';
+import { geoPath, geoNaturalEarth1 } from "d3-geo";
 
 let geoJSON;
 if (worldData.type === "Topology") {
@@ -86,7 +80,7 @@ export default function GamePlayScreen({ route, navigation }) {
 
   const [guess, setGuess] = useState("");
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(6000);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [gameData, setGameData] = useState(null);
   const { currentUser, fetchCurrentUser } = useAuth();
   const [opponentGuesses, setOpponentGuesses] = useState([]);
@@ -102,15 +96,9 @@ export default function GamePlayScreen({ route, navigation }) {
     try {
       if (challengeId) {
         const challengeRef = doc(database, "challenges", challengeId);
-        console.log("🚀 ~ useEffect ~ challengeId:", challengeId);
 
         const unsubscribe = onSnapshot(challengeRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setGameData(docSnap.data());
-            let countryList = docSnap.data().country.map(e => e.country)
-            console.log("🚀 ~ unsubscribe ~ countryList:", countryList)
-            setGuessedCountries(prev => [...prev, ...countryList ])
-          }
+          if (docSnap.exists()) setGameData(docSnap.data());
         });
 
         return () => unsubscribe();
@@ -296,7 +284,7 @@ export default function GamePlayScreen({ route, navigation }) {
 
   const handleTextChange = async (text) => {
     try {
-      let txt = text.trim();
+      let txt = text.trim().toLowerCase();
       setGuess(text);
       if (txt) {
         if (!currentUser) {
@@ -491,7 +479,7 @@ export default function GamePlayScreen({ route, navigation }) {
                   style={[
                     styles.score,
                     scoreAnimatedStyle,
-                    !isCur && { color: "tomato" },
+                    !isCur && { color: "blue" },
                   ]}
                 >
                   {isCur ? "You" : "Challenger"}
@@ -500,7 +488,7 @@ export default function GamePlayScreen({ route, navigation }) {
                   style={[
                     styles.score,
                     scoreAnimatedStyle,
-                    !isCur && { color: "tomato" },
+                    !isCur && { color: "blue" },
                   ]}
                 >
                   {e.score}/196
@@ -514,6 +502,15 @@ export default function GamePlayScreen({ route, navigation }) {
         <Text style={styles.toastText}>- Already Guessed</Text>
       </Animated.View>
 
+      {/* NEW: Display guessed count overlay for solo game */}
+      { gameType === "solo" && (
+        <View style={styles.guessedCountContainer}>
+          <Text style={styles.guessedCountText}>
+            Guessed: {guessedCountries.length} countries
+          </Text>
+        </View>
+      )}
+
       <AnimatedView style={[{ flex: 1 }, mapContainerStyle]}>
         <MapView
           onContainerLayout={onContainerLayout}
@@ -523,6 +520,7 @@ export default function GamePlayScreen({ route, navigation }) {
           containerHeight={containerHeight}
           currentUid={currentUser.uid}
           countryPaths={countryPaths}
+          gameType={gameType}
         />
       </AnimatedView>
 
@@ -604,5 +602,20 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  guessedCountContainer: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
+    zIndex: 2,
+  },
+  guessedCountText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

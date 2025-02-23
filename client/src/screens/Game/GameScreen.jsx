@@ -1,30 +1,38 @@
-import { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Alert,
-  FlatList
-} from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { mockGameSettings } from '../../utils/mockData';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+  FlatList,
+} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { mockGameSettings } from "../../utils/mockData";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
   withRepeat,
   withDelay,
   withSequence,
-  withSpring
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../../contexts/AuthContext';
-import { updateDoc, doc, collection, query, where, onSnapshot, getDoc, orderBy, limit } from 'firebase/firestore';
-import { database } from '../../services/firebase';
-import { useNavigation } from '@react-navigation/native';
+  withSpring,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  doc,
+  query,
+  where,
+  getDoc,
+  updateDoc,
+  onSnapshot,
+  collection,
+} from "firebase/firestore";
+import { database } from "../../services/firebase";
+import { useNavigation } from "@react-navigation/native";
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -49,13 +57,7 @@ export default function GameScreen() {
     soloOptionAnim.value = withDelay(500, withTiming(1, { duration: 500 }));
     multiOptionAnim.value = withDelay(600, withTiming(1, { duration: 500 }));
   }, []);
-
-  const animatedHeaderStyle = useAnimatedStyle(() => {
-    return {
-      opacity: headerFade.value,
-    };
-  });
-
+  
   const animatedSoloOptionStyle = useAnimatedStyle(() => {
     return {
       opacity: soloOptionAnim.value,
@@ -70,30 +72,23 @@ export default function GameScreen() {
     };
   });
 
-  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+  const AnimatedTouchableOpacity =
+    Animated.createAnimatedComponent(TouchableOpacity);
 
   const handleStartSoloGame = () => {
     setIsLoading(true);
     // Simulate API delay
     setTimeout(() => {
       setIsLoading(false);
-      navigation.navigate('GamePlay', { 
-        gameType: 'solo',
-        settings: mockGameSettings.difficultyLevels.medium
+      navigation.navigate("GamePlay", {
+        gameType: "solo",
+        settings: mockGameSettings.difficultyLevels.medium,
       });
     }, 500);
   };
 
   const handleStartMultiplayerGame = () => {
-    setIsLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-      navigation.navigate('GamePlay', {
-        gameType: 'multiplayer',
-        settings: mockGameSettings.difficultyLevels.medium
-      });
-    }, 500);
+    navigation.navigate("Friends");
   };
 
   // Add icon animation
@@ -102,36 +97,42 @@ export default function GameScreen() {
 
   useEffect(() => {
     // Start the icon animation after a slight delay
-    iconScale.value = withDelay(300, withSequence(
-      withSpring(1.3, { 
-        damping: 4,
-        stiffness: 80,
-      }),
-      withSpring(1, {
-        damping: 6,
-        stiffness: 100,
-      })
-    ));
+    iconScale.value = withDelay(
+      300,
+      withSequence(
+        withSpring(1.3, {
+          damping: 4,
+          stiffness: 80,
+        }),
+        withSpring(1, {
+          damping: 6,
+          stiffness: 100,
+        })
+      )
+    );
 
     // Add a subtle rotation effect
-    iconRotate.value = withDelay(300, withSequence(
-      withSpring(-0.2, { 
-        damping: 4,
-        stiffness: 80,
-      }),
-      withSpring(0, {
-        damping: 6,
-        stiffness: 100,
-      })
-    ));
+    iconRotate.value = withDelay(
+      300,
+      withSequence(
+        withSpring(-0.2, {
+          damping: 4,
+          stiffness: 80,
+        }),
+        withSpring(0, {
+          damping: 6,
+          stiffness: 100,
+        })
+      )
+    );
   }, []);
 
   const iconAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { scale: iconScale.value },
-        { rotate: `${iconRotate.value}rad` }
-      ]
+        { rotate: `${iconRotate.value}rad` },
+      ],
     };
   });
 
@@ -143,24 +144,24 @@ export default function GameScreen() {
   useEffect(() => {
     if (currentUser) {
       const challengesRef = collection(database, "challenges");
-      
+
       // Query for challenges where currentUser is challenged.
       const qChallenged = query(
         challengesRef,
         where("challengedId", "==", currentUser.uid),
         where("status", "==", "pending")
       );
-      
+
       // Query for challenges where currentUser is the challenger.
       const qChallenger = query(
         challengesRef,
         where("challengerId", "==", currentUser.uid),
         where("status", "==", "pending")
       );
-      
+
       let challengedRequests = [];
       let challengerRequests = [];
-      
+
       const unsubscribeChallenged = onSnapshot(qChallenged, (snapshot) => {
         (async () => {
           challengedRequests = await Promise.all(
@@ -170,16 +171,19 @@ export default function GameScreen() {
               const opponentId = data.challengerId;
               const opponentRef = doc(database, "users", opponentId);
               const opponentSnap = await getDoc(opponentRef);
-              const opponentData = opponentSnap.exists() ? opponentSnap.data() : { username: "Unknown", avatarUrl: '' };
+              const opponentData = opponentSnap.exists()
+                ? opponentSnap.data()
+                : { username: "Unknown", avatarUrl: "" };
               return { id: docSnap.id, ...data, opponent: opponentData };
             })
           );
-          const merged = [...challengedRequests, ...challengerRequests]
-                            .sort((a, b) => b.createdAt - a.createdAt);
+          const merged = [...challengedRequests, ...challengerRequests].sort(
+            (a, b) => b.createdAt - a.createdAt
+          );
           setChallengeRequests(merged.slice(0, 4));
         })();
       });
-      
+
       const unsubscribeChallenger = onSnapshot(qChallenger, (snapshot) => {
         (async () => {
           challengerRequests = await Promise.all(
@@ -189,16 +193,19 @@ export default function GameScreen() {
               const opponentId = data.challengedId;
               const opponentRef = doc(database, "users", opponentId);
               const opponentSnap = await getDoc(opponentRef);
-              const opponentData = opponentSnap.exists() ? opponentSnap.data() : { username: "Unknown", avatarUrl: '' };
+              const opponentData = opponentSnap.exists()
+                ? opponentSnap.data()
+                : { username: "Unknown", avatarUrl: "" };
               return { id: docSnap.id, ...data, opponent: opponentData };
             })
           );
-          const merged = [...challengedRequests, ...challengerRequests]
-                            .sort((a, b) => b.createdAt - a.createdAt);
+          const merged = [...challengedRequests, ...challengerRequests].sort(
+            (a, b) => b.createdAt - a.createdAt
+          );
           setChallengeRequests(merged.slice(0, 4));
         })();
       });
-      
+
       return () => {
         unsubscribeChallenged();
         unsubscribeChallenger();
@@ -213,7 +220,7 @@ export default function GameScreen() {
       // For a challenged user, update the flag indicating they've joined.
       await updateDoc(challengeRef, { challengedJoined: true });
       // Navigate to the PendingRoom screen passing your opponent's details.
-      navigation.navigate('PendingRoom', {
+      navigation.navigate("PendingRoom", {
         challengedFriend: challengeItem.opponent,
         challengeId: challengeItem.id,
       });
@@ -227,7 +234,7 @@ export default function GameScreen() {
   const handleRejoinChallenge = async (challengeItem) => {
     try {
       // For rejoining, simply navigate back to the PendingRoom with the relevant challenge.
-      navigation.navigate('PendingRoom', {
+      navigation.navigate("PendingRoom", {
         challengedFriend: challengeItem.opponent,
         challengeId: challengeItem.id,
       });
@@ -247,8 +254,8 @@ export default function GameScreen() {
   }
 
   return (
-    <LinearGradient 
-      colors={['#70ab51', '#7dbc63', '#70ab51']}
+    <LinearGradient
+      colors={["#70ab51", "#7dbc63", "#70ab51"]}
       locations={[0, 0.5, 0.06]}
       start={{ x: 0, y: 0.5 }}
       end={{ x: 0.06, y: 0.5 }}
@@ -257,16 +264,16 @@ export default function GameScreen() {
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
           <View style={styles.titlePill}>
-            <Animated.Image 
-              source={require('../../../assets/images/start-up1.png')} 
-              style={[styles.titleIcon, iconAnimatedStyle]} 
+            <Animated.Image
+              source={require("../../../assets/images/start-up1.png")}
+              style={[styles.titleIcon, iconAnimatedStyle]}
             />
             <Text style={styles.titleText}>Start New Game</Text>
           </View>
         </View>
 
         {/* Solo Game Option */}
-        <AnimatedTouchableOpacity 
+        <AnimatedTouchableOpacity
           activeOpacity={1}
           style={[styles.gameOption, animatedSoloOptionStyle]}
           onPress={handleStartSoloGame}
@@ -282,7 +289,7 @@ export default function GameScreen() {
         </AnimatedTouchableOpacity>
 
         {/* Multiplayer Game Option */}
-        <AnimatedTouchableOpacity 
+        <AnimatedTouchableOpacity
           activeOpacity={1}
           style={[styles.gameOption, animatedMultiOptionStyle]}
           onPress={handleStartMultiplayerGame}
@@ -327,7 +334,9 @@ export default function GameScreen() {
         {/* NEW: Challenge Requests List */}
         {showChallengeRequests && (
           <View style={styles.challengeRequestsContainer}>
-            <Text style={styles.challengeRequestsHeader}>Incoming Challenges</Text>
+            <Text style={styles.challengeRequestsHeader}>
+              Incoming Challenges
+            </Text>
             {challengeRequests.length === 0 ? (
               <Text style={styles.noRequestsText}>No challenge requests</Text>
             ) : (
@@ -339,19 +348,36 @@ export default function GameScreen() {
                     <Text style={styles.requestText}>
                       {item.opponent?.username || "Unknown"} challenges you!
                     </Text>
-                    { currentUser.uid === item.challengerId ? (
+                    {currentUser.uid === item.challengerId ? (
                       item.challengedJoined ? (
-                        <TouchableOpacity style={styles.acceptButton} onPress={() => handleRejoinChallenge(item)}>
-                          <Text style={styles.acceptButtonText}>Rejoin Challenge</Text>
+                        <TouchableOpacity
+                          style={styles.acceptButton}
+                          onPress={() => handleRejoinChallenge(item)}
+                        >
+                          <Text style={styles.acceptButtonText}>
+                            Rejoin Challenge
+                          </Text>
                         </TouchableOpacity>
                       ) : (
-                        <View style={[styles.acceptButton, { backgroundColor: 'grey' }]}>
-                          <Text style={styles.acceptButtonText}>Waiting for opponent</Text>
+                        <View
+                          style={[
+                            styles.acceptButton,
+                            { backgroundColor: "grey" },
+                          ]}
+                        >
+                          <Text style={styles.acceptButtonText}>
+                            Waiting for opponent
+                          </Text>
                         </View>
                       )
                     ) : (
-                      <TouchableOpacity style={styles.acceptButton} onPress={() => handleAcceptChallenge(item)}>
-                        <Text style={styles.acceptButtonText}>Accept Challenge</Text>
+                      <TouchableOpacity
+                        style={styles.acceptButton}
+                        onPress={() => handleAcceptChallenge(item)}
+                      >
+                        <Text style={styles.acceptButtonText}>
+                          Accept Challenge
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -373,55 +399,55 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(177, 216, 138, 1)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(177, 216, 138, 1)",
   },
   loadingText: {
     marginTop: 10,
-    color: '#fff',
+    color: "#fff",
   },
   header: {
-    width: '100%',
+    width: "100%",
     marginBottom: 30,
     paddingLeft: 10,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
   },
   gameOption: {
-    width: '90%',
+    width: "90%",
     height: 80,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
     borderRadius: 20,
     marginVertical: 10,
     paddingHorizontal: 20,
-    shadowColor: '#d2d2d2',
+    shadowColor: "#d2d2d2",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 1,
     shadowRadius: 0,
     elevation: 3,
   },
   optionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     marginRight: 10,
   },
@@ -431,70 +457,70 @@ const styles = StyleSheet.create({
   },
   optionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4f7a3a',
+    fontWeight: "bold",
+    color: "#4f7a3a",
     marginBottom: 4,
   },
   optionDescription: {
     fontSize: 14,
-    color: '#4f7a3a',
+    color: "#4f7a3a",
   },
   settingsInfo: {
     padding: 20,
-    alignItems: 'flex-start',
-    width: '90%',
+    alignItems: "flex-start",
+    width: "90%",
   },
   settingsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 15,
-    textAlign: 'left',
+    textAlign: "left",
   },
   settingCardsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
   },
   settingCard: {
-    backgroundColor: '#87c66b',
+    backgroundColor: "#87c66b",
     borderRadius: 10,
     padding: 10,
     height: 100,
     width: 100,
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 5,
-    justifyContent: 'center',
+    justifyContent: "center",
     margin: 10,
   },
   settingCardText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 5,
   },
   titlePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7dbc63',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#7dbc63",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderWidth: 0,
-    borderColor: '#ffffff',
+    borderColor: "#ffffff",
     borderRadius: 50,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 1, height: 1 },
     shadowOpacity: 0,
     shadowRadius: 6,
     elevation: 3,
     marginBottom: 20,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   titleText: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
   },
   titleIcon: {
     width: 20,
@@ -503,20 +529,20 @@ const styles = StyleSheet.create({
   },
   // NEW: Style for the challenge requests button (floating in the top right)
   challengeRequestsButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 40,
     right: 20,
-    backgroundColor: '#4f7a3a',
+    backgroundColor: "#4f7a3a",
     padding: 10,
     borderRadius: 25,
     zIndex: 100,
   },
   // NEW: Styles for the challenge requests container
   challengeRequestsContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 80,
     right: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 10,
     borderRadius: 10,
     width: 250,
@@ -526,33 +552,33 @@ const styles = StyleSheet.create({
   },
   challengeRequestsHeader: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
   },
   noRequestsText: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   requestItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderColor: "#eee",
   },
   requestText: {
     fontSize: 16,
     flex: 1,
   },
   acceptButton: {
-    backgroundColor: '#49b3f5',
+    backgroundColor: "#49b3f5",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 5,
   },
   acceptButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
   },
-}); 
+});
