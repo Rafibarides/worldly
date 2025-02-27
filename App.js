@@ -8,6 +8,7 @@ import GamePlayScreen from './screens/Game/GamePlayScreen';
 import PendingRoomScreen from './screens/Game/PendingRoomScreen';
 import GameSummaryScreen from './screens/Game/GameSummaryScreen';
 import FriendsListScreen from './screens/Friends/FriendsListScreen';
+import GameScreen from './screens/Game/GameScreen'; // Ensure this import is correct
 
 const Stack = createStackNavigator();
 
@@ -15,34 +16,33 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName="Home"
+        initialRouteName="Game"
         screenOptions={{ headerShown: false }}
       >
-        {/* Home Screen */}
-        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-
-        {/* Friends List Screen */}
-        <Stack.Screen name="FriendsList" component={FriendsListScreen} options={{ title: 'Friends' }} />
-
-        {/* Pending Room Screen */}
+        <Stack.Screen 
+          name="Game" 
+          component={GameScreen} 
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="GamePlay" 
+          component={GamePlayScreen}
+          options={{ headerShown: true, title: 'Game Play' }} 
+        />
+        <Stack.Screen 
+          name="GameSummary" 
+          component={GameSummaryScreen}
+          options={{ headerShown: true, title: 'Game Summary' }} 
+        />
+        <Stack.Screen 
+          name="Friends" 
+          component={FriendsListScreen}
+          options={{ title: 'Friends' }} 
+        />
         <Stack.Screen
           name="PendingRoom"
           component={PendingRoomScreen}
           options={{ headerShown: true, title: 'Pending Challenge' }}
-        />
-
-        {/* Game Play Screen */}
-        <Stack.Screen
-          name="GamePlay"
-          component={GamePlayScreen}
-          options={{ headerShown: true, title: 'Game Play' }}
-        />
-
-        {/* Game Summary Screen */}
-        <Stack.Screen
-          name="GameSummary"
-          component={GameSummaryScreen}
-          options={{ headerShown: true, title: 'Game Summary' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

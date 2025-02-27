@@ -39,6 +39,7 @@ export const territoryMap = {
   'Cocos Is.': 'Australia',
   'Heard I. and McDonald Is.': 'Australia',
   'Somaliland': 'Somalia',
+  'denmark': 'Greenland',
 };
 
 // Map of country variations to their official names
@@ -91,6 +92,27 @@ export const countryVariations = {
   'soviet union': 'russia',
   'brasil': 'brazil',
   'brazil': 'brazil',
+  "czechia": "czech republic",
+  "czech republic": "czech republic",
+  "czech": "czech republic",
+  "chzech republic": "czech republic",
+  "chzechia": "czech republic",
+  "czeck republic": "czech republic",
+  "czeckia": "czech republic",
+  "the czech republic": "czechia",
+  "czechrep": "czechia",
+  "czech rep": "czechia",
+  "chech republic": "czechia",
+  "ceh republic": "czechia",
+  "chechia": "czechia",
+  "the czechia": "czechia",
+  "chekeslovakia": "czech republic",
+  "chekslovakia": "czech republic",
+  "chek slovakia": "czech republic",
+  "chekeslovkia": "czech republic",
+  "chekslovkia": "czech republic",
+  "chek slovkia": "czech republic",
+  "denmark": "greenland",
   
   // Multi-word countries and special characters
   'south korea': 'south korea',
@@ -134,6 +156,23 @@ export const countryVariations = {
   'luxemburg': 'luxembourg',
   'morocco': 'morocco',
   'tanzenia': 'tanzania',
+  'philippines': 'Philippines',
+  'phillippines': 'Philipines',
+  'phillippines': 'Philipines',
+  'filipinas': 'Philippines',
+  'filipines': 'Philippines',
+  'filipins': 'Philippines',
+  'philipino': 'Philippines',
+  'Filipino': 'Philippines',
+  'antiguaandbarb': 'Antigua and Barb.',
+  // Additional aliases for Antigua and Barbuda
+  'antigua': 'antiguaandbarb',
+  'barbuda': 'antiguaandbarb',
+  'antiguaandbarbuda': 'antiguaandbarb',
+  'antiguabarbuda': 'antiguaandbarb',
+  // Special alias: when a user types "denmark", return "greenland" (as per Country_Names.json)
+  'denmark': 'greenland',
+  // Add additional aliases as needed.
 };
 
 // Map of country variations to their GeoJSON names
@@ -146,8 +185,10 @@ export const geoJSONNameMap = {
   'russia': 'Russia',
   'democratic republic of the congo': 'Dem. Rep. Congo',
   'republic of the congo': 'Congo',
-  'czech republic': 'Czech Rep.',
-  'czechia': 'Czech Rep.',
+  'czech republic': 'Czech Republic',
+  'czechia': 'Czech Republic',
+  'czech': 'Czech Republic',
+  'czechrep': 'Czechia',
   'central african republic': 'Central African Rep.',
   'dominican republic': 'Dominican Rep.',
   'united arab emirates': 'United Arab Emirates',
@@ -181,45 +222,146 @@ export const geoJSONNameMap = {
   'saint lucia': 'St. Lucia',
   'saint kitts': 'St. Kitts',
   'saint lucia': 'st Lucia',
+  'kazakhstan': 'Kazakhstan',
+  'khazakhstan': 'Kazakhstan',
+  'kazakhstan': 'Kazakhstan',
+  'kazakistan': 'Kazakhstan',
+  'kazakhstan': 'Kazakstan',
+  'philippines': 'Philippines',
+  'phillippines': 'Philipines',
+  'phillippines': 'Philipines',
+  'filipinas': 'Philippines',
+  'czech republic': 'Czechia',
+  'czechia': 'Czechia',
+  'czech': 'Czechia',
+  'czech rep': 'Czechia',
+  'chech republic': 'Czechia',
+  'chechia': 'Czechia',
   
+  // --- Additional failsafe entries for St. Lucia, St. Vincent, and St. Kitts ---
+  'stlucia': 'St. Lucia',
+  'saintlucia': 'St. Lucia',
+  'stvincent': 'St. Vin. and Gren.',
+  'saintvincent': 'St. Vin. and Gren.',
+  'stkitts': 'St. Kitts and Nevis',
+  'saintkitts': 'St. Kitts and Nevis',
+  'stkittsandnevis': 'St. Kitts and Nevis',
+  'saintkittsandnevis': 'St. Kitts and Nevis',
+  // --- Additional failsafe entry for Antigua and Barbuda ---
+  'antiguabarbuda': 'Antigua and Barb.',
+  'antigua': 'antiguabarbuda',
+  'barbuda': 'antiguabarbuda',
+  'antiguaandbarbuda': 'Antigua and Barb.',
+  // --- Additional failsafe proper names based on GeoJSON features ---
+  'czechrepublic': 'Czechia',
+  'czechia': 'Czechia',
+  'czech': 'Czechia',
+  'czechrep': 'Czechia',
+  'czech rep': 'Czechia',
+  'chech republic': 'Czechia',
+  'chechia': 'Czechia',
+  'antigua and barbuda': 'Antigua and Barb.',
+  'antiguabarbuda': 'Antigua and Barb.',
+  'antiguaandbarbuda': 'Antigua and Barb.',
+  // Add additional aliases as needed.
 };
 
-// Helper function to normalize country names
-export function normalizeCountryName(input) {
-  const normalized = input.trim().toLowerCase()
-    .replace(/['-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+// Add an alias mapping to handle variations in country naming.
+const aliasMapping = {
+  "dominican republic": "dominican rep.",
+  "dominican rep": "dominican rep.",
+  "dr": "dominican rep.",
+  "dominican": "dominican rep."
+};
 
-  // First check variations map
-  const mappedName = countryVariations[normalized];
+// A helper function to normalize country names for robust matching.
+export const normalizeCountryName = (name) => {
+  if (!name || typeof name !== 'string') return '';
   
-  // If we have a mapping, check if it needs GeoJSON conversion
-  if (mappedName) {
-    // Force the return value to lower-case
-    return (geoJSONNameMap[mappedName] || mappedName).toLowerCase();
+  // Lowercase, trim, and remove extraneous punctuation
+  let normalized = name.toLowerCase().trim();
+  normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ''); // remove punctuation
+  normalized = normalized.replace(/\s+/g, ''); // remove spaces
+  
+  // Check if there's an alias for the given normalized name.
+  if (aliasMapping[normalized]) {
+    normalized = aliasMapping[normalized];
   }
   
-  // If no mapping found, check if the normalized input has a GeoJSON mapping
-  const geoJSONName = geoJSONNameMap[normalized];
-  if (geoJSONName) {
-    return geoJSONName.toLowerCase();
-  }
-
-  // If still no match, try to find an exact match in Country_Names.json
-  const countryNames = require('./Country_Names.json');
-  const exactMatch = countryNames.find(
-    country => country['Country Name'].toLowerCase() === normalized
-  );
+  // Define aliases to map commonly used variants to a canonical name.
+  const aliases = {
+    'us': 'unitedstatesofamerica',
+    'usa': 'unitedstatesofamerica',
+    'america': 'unitedstatesofamerica',
+    'unitedstates': 'unitedstatesofamerica',
+    'unitedstatesofamerica': 'unitedstatesofamerica',
+    'uk': 'unitedkingdom',
+    'greatbritain': 'unitedkingdom',
+    'england': 'unitedkingdom',
+    'brasil': 'brazil',
+    'brazil': 'brazil',
+    'burma': 'myanmar',
+    'myanmar': 'myanmar',
+    'kazakhstan': 'kazakstan',
+    'uae': 'unitedarabemirates',
+    'car': 'centralafricanrepublic',
+    'centralafricanrep': 'centralafricanrepublic', // In case geoJSON abbreviates the country name.
+    'dr': 'dominicanrep',
+    'drc': 'demrepcongo',
+    'democraticrepublicofthecongo': 'demrepcongo',
+    'denmark': 'greenland',
+    // Additional aliases for Czech Republic
+    'czechrepublic': 'czechia',
+    'czechia': 'czechia',
+    'czech': 'czechia',
+    'chechrepublic': 'czechia',
+    'chechia': 'czechia',
+    // Additional aliases for São Tomé and Príncipe (Sao Tome)
+    'saotome': 'sãotoméandpríncipe',
+    'saotomeandprincipe': 'sãotoméandpríncipe',
+    // Additional aliases for Bosnia
+    'bosnia': 'bosniaandherz',
+    'herzegovina': 'bosniaandherz',
+    'bosniaherzegovina': 'bosniaandherz',
+    'bosniaandherzegovina': 'bosniaandherz',
+    // Additional aliases for Macedonia / North Macedonia
+    'macedonia': 'northmacedonia',
+    'nmacedonia': 'northmacedonia',
+    'northmacedonia': 'northmacedonia',
+    // Additional failsafe aliases for St. Lucia, St. Vincent, and St. Kitts
+    'stlucia': 'saintlucia',
+    'saintlucia': 'saintlucia',
+    'st.lucia': 'saintlucia',
+    'stvincent': 'saintvincentandthegrenadines',
+    'saintvincent': 'saintvincentandthegrenadines',
+    'stvincentandthegrenadines': 'saintvincentandthegrenadines',
+    'saintvincentandthegrenadines': 'saintvincentandthegrenadines',
+    'stkitts': 'saintkittsandnevis',
+    'st.kitts': 'saintkittsandnevis',
+    'saintkitts': 'saintkittsandnevis',
+    'stkittsandnevis': 'saintkittsandnevis',
+    'saintkittsandnevis': 'saintkittsandnevis',
+    // Additional aliases for Antigua and Barbuda
+    'antigua': 'antiguaandbarb',
+    'barbuda': 'antiguaandbarb',
+    'antiguaandbarbuda': 'antiguaandbarb',
+    'antiguabarbuda': 'antiguaandbarb',
+    // Add additional aliases as needed.
+  };
   
-  // Always return a lower-case result for consistency
-  return (exactMatch ? exactMatch['Country Name'] : normalized).toLowerCase();
-}
+  return aliases[normalized] || normalized;
+};
 
 // Helper function to get all territories for a country
 export function getTerritoriesForCountry(countryName) {
-  // For "Sudan" and "South Sudan", do not automatically add territories
   const normalized = countryName.trim().toLowerCase();
+  
+  // Special case: if the normalized name is "greenland", return only Greenland
+  if (normalized === "greenland") {
+    return ["greenland"];
+  }
+
+  // For "Sudan" and "South Sudan", do not automatically add territories
   if (normalized === "sudan" || normalized === "south sudan") {
     return [];
   }
@@ -237,5 +379,12 @@ export function getTerritoryMatch(guess) {
   if (normalizedGuess === "sudan" || normalizedGuess === "south sudan") {
     return undefined;
   }
-  return territoryMap[normalizedGuess];
+  // Special handling: if user types "denmark" (or "greenland"), return "Greenland"
+  if (normalizedGuess === "denmark" || normalizedGuess === "greenland") {
+    return "Greenland";
+  }
+  const key = Object.keys(territoryMap).find(
+    k => k.toLowerCase() === normalizedGuess
+  );
+  return key ? territoryMap[key] : undefined;
 } 

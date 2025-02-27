@@ -81,8 +81,12 @@ function FriendsStackNavigator() {
 // Create a separate stack navigator for the Game screens
 function GameStackNavigator() {
   return (
-    <GameStack.Navigator>
-      <GameStack.Screen name="GameMain" component={GameScreen} />
+    <GameStack.Navigator screenOptions={{ headerShown: false }}>
+      <GameStack.Screen 
+        name="GameMain" 
+        component={GameScreen}
+        options={{ headerShown: false }}  // Ensure header is hidden
+      />
       <GameStack.Screen name="GamePlay" component={GamePlayScreen} />
       <GameStack.Screen name="GameSummary" component={GameSummaryScreen} />
       <GameStack.Screen 

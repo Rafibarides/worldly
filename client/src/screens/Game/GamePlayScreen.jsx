@@ -75,12 +75,15 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
+// Updated game duration in seconds: 30 seconds per game
+const GAME_DURATION = 30;
+
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, challengeId, gameId } = route.params;
 
   const [guess, setGuess] = useState("");
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [gameData, setGameData] = useState(null);
   const { currentUser, fetchCurrentUser } = useAuth();
   const [opponentGuesses, setOpponentGuesses] = useState([]);
@@ -318,10 +321,12 @@ export default function GamePlayScreen({ route, navigation }) {
             countries.push({ country: txt, uid: currentUser.uid });
             let scoreIndex = list.findIndex((e) => e.uid === currentUser.uid);
             if (scoreIndex !== -1) {
-              list[scoreIndex] = {
-                ...list[scoreIndex],
-                score: list[scoreIndex].score + 1,
-              };
+              if (normalizedCountryName !== 'palestine') {
+                list[scoreIndex] = {
+                  ...list[scoreIndex],
+                  score: list[scoreIndex].score + 1,
+                };
+              }
               await updateDoc(doc(database, "challenges", challengeId), {
                 scoreList: list,
                 country: countries,
@@ -332,7 +337,7 @@ export default function GamePlayScreen({ route, navigation }) {
               (recCountry) =>
                 normalizeCountryName(recCountry) === normalizedGuess
             );
-            if (isRecognized) {
+            if (isRecognized && normalizedGuess !== 'palestine') {
               setScore((prev) => prev + 1);
               animateScore();
               console.log("Game data set successfully!");
@@ -347,33 +352,45 @@ export default function GamePlayScreen({ route, navigation }) {
           const isRecognized = recognizedCountries.recognized_countries.some(
             (recCountry) => normalizeCountryName(recCountry) === normalizedGuess
           );
-          if (isRecognized && !guessedCountries.includes(normalizedGuess)) {
-            if (gameType === "multiplayer") {
-              socket.emit("countryGuessed", {
-                gameId,
-                userId: currentUser.uid,
-                country: normalizedGuess,
-              });
-              setGuess("");
+          if (isRecognized) {
+            if (guessedCountries.includes(normalizedGuess)) {
+              // Already guessed – shake input and show toast.
+              shakeInput();
+              showToast();
             } else {
+              // Add the normalized guess to the local guessedCountries array for both game modes.
               setGuessedCountries((prev) => [...prev, normalizedGuess]);
-              setScore((prev) => prev + 1);
-              animateScore();
+
+              if (gameType === "multiplayer") {
+                socket.emit("countryGuessed", {
+                  gameId,
+                  userId: currentUser.uid,
+                  country: normalizedGuess,
+                });
+              } else {
+                if (normalizedGuess !== 'palestine') {
+                  setScore((prev) => prev + 1);
+                  animateScore();
+                }
+              }
+
+              const list = [...(gameData?.scoreList ?? [])];
+              const countries = [...(gameData?.country ?? [])];
+              countries.push({ country: txt, uid: currentUser.uid });
+              let scoreIndex = list.findIndex((e) => e.uid === currentUser.uid);
+              if (scoreIndex !== -1) {
+                if (normalizedGuess !== 'palestine') {
+                  list[scoreIndex] = {
+                    ...list[scoreIndex],
+                    score: list[scoreIndex].score + 1,
+                  };
+                }
+                await updateDoc(doc(database, "challenges", challengeId), {
+                  scoreList: list,
+                  country: countries,
+                });
+              }
               setGuess("");
-            }
-            const list = [...(gameData?.scoreList ?? [])];
-            const countries = [...(gameData?.country ?? [])];
-            countries.push({ country: txt, uid: currentUser.uid });
-            let scoreIndex = list.findIndex((e) => e.uid === currentUser.uid);
-            if (scoreIndex !== -1) {
-              list[scoreIndex] = {
-                ...list[scoreIndex],
-                score: list[scoreIndex].score + 1,
-              };
-              await updateDoc(doc(database, "challenges", challengeId), {
-                scoreList: list,
-                country: countries,
-              });
             }
           }
         }
@@ -385,19 +402,13 @@ export default function GamePlayScreen({ route, navigation }) {
 
   const handleGameEnd = async () => {
     try {
-      await updateDoc(doc(database, "users", currentUser.uid), {
-        "stats.gamesPlayed": increment(1),
+      // Do not update gamesPlayed here; increment is handled in GameSummaryScreen.
+      navigation.replace("GameSummary", {
+        finalScore: scoreRef.current,
+        totalCountries: recognizedCountries.recognized_countries.length,
+        guessedCountries: guessedCountriesRef.current,
+        gameType: "solo"
       });
-      await fetchCurrentUser();
-      
-      setTimeout(() => {
-        navigation.replace("GameSummary", {
-          finalScore: scoreRef.current,
-          totalCountries: recognizedCountries.recognized_countries.length,
-          guessedCountries: guessedCountriesRef.current,
-          gameType: "solo"
-        });
-      }, 0);
     } catch (error) {
       console.error("Error updating gamesPlayed:", error);
     }
@@ -460,7 +471,7 @@ export default function GamePlayScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: 60 }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 60}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <TouchableOpacity
         style={styles.exitButton}
@@ -503,6 +514,20 @@ export default function GamePlayScreen({ route, navigation }) {
           })}
       </View>
 
+      <View style={styles.inputSection}>
+        <AnimatedTextInput
+          style={[styles.input, inputAnimatedStyle]}
+          placeholder="Enter country name..."
+          value={guess}
+          onChangeText={handleTextChange}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          spellCheck={false}
+          keyboardType="ascii-capable"
+        />
+      </View>
+
       <Animated.View style={[styles.toastWrapper, toastAnimatedStyle]}>
         <Text style={styles.toastText}>- Already Guessed</Text>
       </Animated.View>
@@ -528,16 +553,6 @@ export default function GamePlayScreen({ route, navigation }) {
           gameType={gameType}
         />
       </AnimatedView>
-
-      <View style={styles.inputSection}>
-        <AnimatedTextInput
-          style={[styles.input, inputAnimatedStyle]}
-          placeholder="Enter country name..."
-          value={guess}
-          onChangeText={handleTextChange}
-          autoCapitalize="none"
-        />
-      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -571,21 +586,22 @@ const styles = StyleSheet.create({
     color: "rgb(101, 161, 42)",
   },
   inputSection: {
-    padding: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
     flexDirection: "row",
-    gap: 10,
     backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
   input: {
     flex: 1,
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 25,
-    padding: 15,
+    padding: 12,
     fontSize: 16,
     backgroundColor: "#f5f5f5",
+    marginVertical: 8,
   },
   exitButton: {
     position: "absolute",

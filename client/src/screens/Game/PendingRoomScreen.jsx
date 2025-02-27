@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import socket from "../../services/socket";
 import { useAuth } from "../../contexts/AuthContext";
-import { doc, onSnapshot, getDoc, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, getDoc, updateDoc, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { database } from "../../services/firebase";
 
 export default function PendingRoomScreen() {
@@ -20,6 +21,9 @@ export default function PendingRoomScreen() {
   const [challenge, setChallenge] = useState(null);
   // partnerStatus can be "waiting", "joined", or "left"
   const [partnerStatus, setPartnerStatus] = useState("waiting");
+
+  // Add a ref to prevent duplicate missed challenge logs
+  const missedLogCreated = useRef(false);
 
   useEffect(() => {
     // Listen to challenge document changes
@@ -125,6 +129,8 @@ export default function PendingRoomScreen() {
           const updatedData = updatedSnap.data();
           if (!updatedData.challengerJoined && !updatedData.challengedJoined) {
             await updateDoc(challengeRef, { status: "cancelled" });
+            // Now that the challenge is cancelled, create a missed challenge log.
+            await createMissedChallengeLog();
           }
         }
       }
@@ -155,6 +161,82 @@ export default function PendingRoomScreen() {
       socket.off("playerLeft", handlePlayerLeft);
     };
   }, [challengedFriend, challengeRoomId]);
+
+  // Replace the existing createMissedChallengeLog function with the following:
+  const createMissedChallengeLog = async () => {
+    // Prevent duplicate logs.
+    if (missedLogCreated.current) return;
+    
+    // Re-read the latest challenge data from Firestore.
+    const challengeRef = doc(database, "challenges", challengeId);
+    const docSnap = await getDoc(challengeRef);
+    if (!docSnap.exists()) return;
+    const latestChallenge = docSnap.data();
+
+    // Only proceed if the challenge exists, its status is 'cancelled',
+    // and the challenged user never joined.
+    if (!(latestChallenge && latestChallenge.status === "cancelled" && !latestChallenge.challengedJoined)) return;
+    missedLogCreated.current = true;
+    
+    let initiatorId, friendId, friendName, friendAvatar;
+    if (currentUser.uid === challenge.challengerId) {
+      // Current user is the challenger — log the missed challenge for the challenged friend.
+      // In this case, the missed log will be sent to the challenged friend.
+      initiatorId = challenge.challengedId;
+      friendId = challenge.challengerId;
+      friendName = currentUser.username;
+      friendAvatar =
+        currentUser.avatarUrl ||
+        "https://api.dicebear.com/9.x/avataaars/png?seed=default";
+    } else {
+      // Otherwise, current user is the challenged friend who never joined.
+      // Log the missed challenge so the challenged user sees it.
+      initiatorId = challenge.challengedId; // equals currentUser.uid
+      friendId = challenge.challengerId;
+      friendName =
+        (challengedFriend && challengedFriend.username)
+          ? challengedFriend.username
+          : "Challenger";
+      friendAvatar =
+        (challengedFriend && challengedFriend.avatarUrl)
+          ? challengedFriend.avatarUrl
+          : "https://api.dicebear.com/9.x/avataaars/png?seed=default";
+    }
+    
+    try {
+      const missedChallengesRef = collection(database, "missedChallenges");
+      await addDoc(missedChallengesRef, {
+        initiatorId,
+        friendId,
+        friendName,
+        friendAvatar,
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Error creating missed challenge log:", error);
+    }
+  };
+
+  // Modify the existing handleCancel function to update the challenge status
+  const handleCancel = async () => {
+    try {
+      // Only proceed with cancellation if the challenge is still pending.
+      if (challenge && challenge.status === "pending") {
+        await updateDoc(doc(database, "challenges", challengeId), { status: "cancelled" });
+  
+        // Since the challenge is now cancelled, trigger missed challenge log creation.
+        await createMissedChallengeLog();
+      }
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Home"); // fallback to Home screen if no screen to go back to
+      }
+    } catch (error) {
+      console.error("Error cancelling challenge:", error);
+      Alert.alert("Error", "Failed to cancel challenge.");
+    }
+  };
 
   // Handler for manually cancelling the challenge.
   const handleCancelChallenge = async () => {
@@ -225,7 +307,7 @@ export default function PendingRoomScreen() {
 
       <TouchableOpacity
         style={styles.cancelButton}
-        onPress={handleCancelChallenge}
+        onPress={handleCancel}
       >
         <Text style={styles.cancelText}>Cancel Challenge</Text>
       </TouchableOpacity>

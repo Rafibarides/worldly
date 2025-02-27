@@ -127,7 +127,7 @@ export default function GameSummaryScreen() {
 
   // NEW: Leveling system update.
   // This hook checks the user's gamesPlayed and recalculates their level.
-  // If the calculated level is higher than the current user.level, we update it in Firestore.
+  // If the calculated level is higher than the current user's level, we update it in Firestore.
   useEffect(() => {
     async function objectiveLevelCheck() {
       // Ensure that we have a valid user and stats.
@@ -136,11 +136,17 @@ export default function GameSummaryScreen() {
       const latestUser = await fetchCurrentUser();
       // Calculate correct level based on the latest gamesPlayed count
       const newLevel = calculateLevel(latestUser.stats.gamesPlayed);
-      // If the objective check finds the level is lower than what's implied by gamesPlayed, update Firestore and local state.
-      if (newLevel > latestUser.level) {
+      // Ensure we default to level 1 if no level is specified
+      const currentLevel = latestUser.stats?.level || 1;
+      // If new level should be higher than the current level, update "stats.level" in Firestore and local state.
+      if (newLevel > currentLevel) {
         try {
-          await updateDoc(doc(database, 'users', latestUser.uid), { level: newLevel });
-          setCurrentUser({ ...latestUser, level: newLevel });
+          // Update the nested stats field for level
+          await updateDoc(doc(database, 'users', latestUser.uid), { "stats.level": newLevel });
+          setCurrentUser({
+            ...latestUser,
+            stats: { ...latestUser.stats, level: newLevel },
+          });
           console.log(`Objective level check: User ${latestUser.uid} updated to level ${newLevel}`);
         } catch (error) {
           console.error("Objective level check failed: ", error);
@@ -341,6 +347,16 @@ export default function GameSummaryScreen() {
     }
   };
 
+  // Somewhere near the top of your component (e.g., in a useEffect hook handling post game updates)
+  useEffect(() => {
+    // Increment gamesPlayed for both solo and multiplayer games
+    if (gameType === 'solo' || gameType === 'multiplayer') {
+      updateDoc(doc(database, 'users', currentUser.uid), {
+        "stats.gamesPlayed": increment(1)
+      });
+    }
+  }, [gameType]);
+
   return (
     <AnimatedLinearGradient 
       colors={['#70ab51', '#7dbc63', '#70ab51']}
@@ -436,15 +452,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#7dbc63',
-    paddingVertical: 0,
-    paddingHorizontal: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderWidth: 0,
     borderColor: '#ffffff',
     borderRadius: 50,
-    marginBottom: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 30,
     alignSelf: 'flex-start',
-    marginLeft: 10,
-    marginTop: 10,
   },
   titleText: {
     fontSize: 22,
@@ -547,10 +566,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
   },
   loserBanner: {
-    backgroundColor: '#f44336',
+    backgroundColor: '#fbaa3e',
   },
   tieBanner: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#4CAF50',
   },
   resultText: {
     color: '#fff',

@@ -5,7 +5,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useAuth } from '../../contexts/AuthContext';
 import ProfileView from '../../components/ProfileView';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { updateDoc, doc } from "firebase/firestore";
+import calculateLevel from "../../utils/leveling";
+import { database } from "../../services/firebase";
 
 // For development, we'll use the first mock user
 // const currentUser = mockUsers[0];
@@ -31,6 +34,26 @@ export default function HomeScreen({ navigation }) {
     await fetchCurrentUser();
     setRefreshing(false);
   };
+
+  // NEW: Check and update the user's level on screen load (or whenever currentUser changes)
+  useEffect(() => {
+    if (currentUser && currentUser.stats) {
+      const newLevel = calculateLevel(currentUser.stats.gamesPlayed);
+      // Read current level from the top-level field, defaulting to 1 if not set.
+      const currentLevel = currentUser.level || 1;
+      if (newLevel > currentLevel) {
+        updateDoc(doc(database, "users", currentUser.uid), {
+          level: newLevel
+        })
+        .then(() => {
+          console.log(`User level updated from ${currentLevel} to ${newLevel}`);
+        })
+        .catch((error) => {
+          console.error("Error updating user level:", error);
+        });
+      }
+    }
+  }, [currentUser]);
 
   if (!currentUser) {
     return (

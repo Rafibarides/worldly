@@ -2,6 +2,7 @@ import React from "react";
 import { feature } from "topojson-client";
 import Svg, { Path } from "react-native-svg";
 import { View, ScrollView, Text } from "react-native";
+import { normalizeCountryName } from "../../utils/countryHelpers";
 import worldData from "../../../assets/geojson/ne_50m_admin_0_countries.json";
 
 let geoJSON;
@@ -44,19 +45,20 @@ export default function MapView({
           preserveAspectRatio="xMidYMid meet"
         >
           {countryPaths.map((d, index) => {
-            // Find the feature name from the path and normalize it
-            const featureName =
-              filteredWorldData.features[index].properties.NAME.toLowerCase();
+            // Normalize the feature's country name
+            const normalizedFeatureName = normalizeCountryName(
+              filteredWorldData.features[index].properties.NAME
+            );
             let fillColor;
             if (gameType === "solo") {
               // In solo mode, check if the guessedCountries array includes this country name
-              fillColor = guessedCountries.includes(featureName)
+              fillColor = guessedCountries.includes(normalizedFeatureName)
                 ? "#4bd670"
                 : "#FFF9C4";
             } else {
               // Multiplayer logic as before
               let isMyGuess = gameDataCountry?.filter(
-                (e) => e.country.toLowerCase() === featureName
+                (e) => normalizeCountryName(e.country) === normalizedFeatureName
               );
               let guessMine =
                 isMyGuess && (isMyGuess.length > 1

@@ -368,13 +368,14 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 40,
+    paddingTop: 80,
     paddingHorizontal: 20,
   },
   contentContainer: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingTop: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#fff",
     borderRadius: 20,
-    marginVertical: 10,
+    marginVertical: 15,
     paddingHorizontal: 20,
     shadowColor: "#d2d2d2",
     shadowOffset: { width: 0, height: 5 },
@@ -443,6 +444,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "flex-start",
     width: "90%",
+    marginTop: 30,
   },
   settingsTitle: {
     fontSize: 18,
@@ -504,9 +506,9 @@ const styles = StyleSheet.create({
   // NEW: Style for the challenge requests button (floating in the top right)
   challengeRequestsButton: {
     position: "absolute",
-    top: 40,
+    top: 80,
     right: 20,
-    backgroundColor: "#4f7a3a",
+    backgroundColor: "#7dbc63",
     padding: 10,
     borderRadius: 25,
     zIndex: 100,
@@ -514,7 +516,7 @@ const styles = StyleSheet.create({
   // NEW: Styles for the challenge requests container
   challengeRequestsContainer: {
     position: "absolute",
-    top: 80,
+    top: 120,
     right: 20,
     backgroundColor: "#fff",
     padding: 10,
