@@ -267,13 +267,15 @@ export default function PendingRoomScreen() {
       // Get the challenge reference.
       const challengeRef = doc(database, "challenges", challengeId);
       
-      // Update the challenge document with active status, joined flags, and a gameStarted indicator.
+      // Update the challenge document with active status, joined flags, a gameStarted indicator,
+      // and record the official game start time.
       await updateDoc(challengeRef, { 
         status: "active",
         acceptedAt: serverTimestamp(),
         challengerJoined: true,
         challengedJoined: true,
         gameStarted: true,
+        startedAt: serverTimestamp(),
       });
       
       // Set the local flag so that further cancellation logic is ignored.

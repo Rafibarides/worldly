@@ -85,6 +85,7 @@ export default function GamePlayScreen({ route, navigation }) {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [gameData, setGameData] = useState(null);
+  const [hasNavigated, setHasNavigated] = useState(false);
   const { currentUser, fetchCurrentUser } = useAuth();
   const [opponentGuesses, setOpponentGuesses] = useState([]);
   const [guessedCountries, setGuessedCountries] = useState([]);
@@ -153,11 +154,61 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   }, [gameType, currentUser, guessedCountries]);
 
-  // First, create a separate effect for handling game end navigation
+  // Replace the current timer effect with this updated version:
   useEffect(() => {
-    if (timeLeft === 0) {
+    let timer;
+    if (gameData && gameData.startedAt) {
+      // Extract the startedAt timestamp in milliseconds.
+      const startedAtMs = gameData.startedAt.toMillis
+        ? gameData.startedAt.toMillis()
+        : new Date(gameData.startedAt).getTime();
+      
+      // Function to update the remaining time.
+      const updateRemainingTime = () => {
+        const elapsed = Math.floor((Date.now() - startedAtMs) / 1000);
+        const newTimeLeft = GAME_DURATION - elapsed;
+        
+        if (newTimeLeft <= 0) {
+          clearInterval(timer);
+          setTimeLeft(0);
+        } else {
+          setTimeLeft(newTimeLeft);
+        }
+      };
+
+      // Immediately update the timer display when gameData is available.
+      updateRemainingTime();
+
+      // Schedule the timer to update every second.
+      timer = setInterval(updateRemainingTime, 1000);
+    } else {
+      // Fallback: if startedAt isn't available, decrement the timer normally.
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [gameData]);
+
+  // Add this separate effect to handle navigation when timeLeft reaches 0
+  useEffect(() => {
+    if (timeLeft === 0 && !hasNavigated) {  // Only navigate if not already done
+      setHasNavigated(true); // Prevent further navigations
       if (gameType === "solo") {
-        handleGameEnd();
+        // Navigate to the GameSummary screen with the final results.
+        navigation.replace("GameSummary", {
+          result: "Completed",
+          gameType: "solo",
+          finalScore: score,
+          totalCountries: recognizedCountries.recognized_countries.length,
+          guessedCountries: guessedCountriesRef.current,
+        });
       } else if (gameType === "multiplayer" && gameData?.scoreList?.length > 0) {
         (async () => {
           try {
@@ -198,22 +249,7 @@ export default function GamePlayScreen({ route, navigation }) {
         })();
       }
     }
-  }, [timeLeft, gameType, gameData, currentUser?.uid, navigation]);
-
-  // Then modify the timer effect to only handle countdown
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
+  }, [timeLeft, gameType, gameData, currentUser?.uid, navigation, score, challengeId, gameId, hasNavigated]);
 
   // Listen for opponent's correct guess events on the correct event name "countryGuessedUpdate"
   useEffect(() => {
@@ -506,7 +542,7 @@ export default function GamePlayScreen({ route, navigation }) {
   const handleExitGame = () => {
     Alert.alert(
       "Exit Game",
-      "Are you sure you want to exit? Your progress will be lost.",
+      "Are you sure you want to exit? ",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -520,6 +556,60 @@ export default function GamePlayScreen({ route, navigation }) {
       ]
     );
   };
+
+  const gameOverCountryCount = 196; // number of correct guesses to end the game immediately
+  const [gameIsOver, setGameIsOver] = useState(false);
+
+  // NEW: Monitor for game-over condition based on guessed countries count.
+  // Place this effect below your handleGameEnd function.
+  useEffect(() => {
+    if (!gameIsOver) {
+      if (gameType === "solo" && score >= gameOverCountryCount) {
+        // For solo games, if the local score reaches the threshold, end the game.
+        setGameIsOver(true);
+        handleGameEnd(); // this navigates to GameSummary for solo mode.
+      } else if (gameType === "multiplayer" && gameData?.scoreList) {
+        // For multiplayer games, check both players' scores.
+        const myEntry = gameData.scoreList.find(e => e.uid === currentUser.uid) || {};
+        const opponentEntry = gameData.scoreList.find(e => e.uid !== currentUser.uid) || {};
+        if ((myEntry.score >= gameOverCountryCount) || (opponentEntry.score >= gameOverCountryCount)) {
+          setGameIsOver(true);
+          (async () => {
+            try {
+              // Update the challenge status to completed in Firestore.
+              const challengeRef = doc(database, "challenges", challengeId);
+              await updateDoc(challengeRef, { 
+                status: "completed",
+                completedAt: serverTimestamp()
+              });
+            } catch (error) {
+              console.error("Error updating challenge status to completed:", error);
+            }
+            // Determine result based on scores.
+            const myScore = myEntry.score || 0;
+            const opponentScore = opponentEntry.score || 0;
+            let result = "Tied";
+            if (myScore > opponentScore) {
+              result = "Winner";
+            } else if (myScore < opponentScore) {
+              result = "Loser";
+            }
+            // Navigate to the GameSummary screen for multiplayer.
+            navigation.replace("GameSummary", {
+              result,
+              gameData,
+              gameType: "multiplayer",
+              finalScore: myScore,
+              opponentScore,
+              totalCountries: recognizedCountries.recognized_countries.length,
+              guessedCountries: guessedCountriesRef.current,
+              gameId
+            });
+          })();
+        }
+      }
+    }
+  }, [score, gameData, gameType, gameIsOver, currentUser, challengeId, navigation, recognizedCountries, guessedCountriesRef, gameId]);
 
   return (
     <KeyboardAvoidingView
