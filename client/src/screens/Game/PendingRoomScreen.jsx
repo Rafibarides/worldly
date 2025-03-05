@@ -11,6 +11,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import socket from "../../services/socket";
 import { useAuth } from "../../contexts/AuthContext";
 import { doc, onSnapshot, getDoc, updateDoc, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from "../../services/firebase";
 
 export default function PendingRoomScreen() {
@@ -21,6 +22,8 @@ export default function PendingRoomScreen() {
   const [challenge, setChallenge] = useState(null);
   // partnerStatus can be "waiting", "joined", or "left"
   const [partnerStatus, setPartnerStatus] = useState("waiting");
+  // NEW: Flag to indicate that the game has been initiated so that we ignore further cancellation updates.
+  const [gameInitiated, setGameInitiated] = useState(false);
 
   // Add a ref to prevent duplicate missed challenge logs
   const missedLogCreated = useRef(false);
@@ -31,39 +34,42 @@ export default function PendingRoomScreen() {
     const unsubscribe = onSnapshot(challengeRef, (docSnap) => {
       if (docSnap.exists()) {
         const challengeData = docSnap.data();
-        // If the challenge is no longer pending, determine next steps:
-        if (challengeData.status !== "pending") {
-          if (challengeData.status === "accepted" && challengeData.gameId) {
-            // Both users navigate to GamePlay if the challenge was accepted.
-            navigation.replace("GamePlay", {
-              gameType: "multiplayer",
-              gameId: challengeData.gameId,
-              challengeId,
-              // challengerId: challengeData.challengeId,
-              // challengedId: challengeData.challengedId,
-              settings: {}, // Add specific game settings if needed.
-            });
-          } else {
-            navigation.goBack();
-          }
+        
+        // If the challenge has been cancelled or completed and the game hasn't been initiated, then leave.
+        if (!gameInitiated && (challengeData.status === "cancelled" || challengeData.status === "completed")) {
+          // Only leave if the game has not started.
+          AsyncStorage.removeItem("activeChallenge");
+          navigation.goBack();
+          return;
+        } else if (
+          // If the challenge status is active (or accepted) and the gameId exists,
+          // navigate to GamePlay only if the game hasn't been initiated already.
+          (challengeData.status === "active" || challengeData.status === "accepted") &&
+          challengeData.gameId &&
+          !gameInitiated
+        ) {
+          // It might be that the other participant has joined.
+          // However, if startGame has been triggered locally, we are already navigating.
+          navigation.replace("GamePlay", {
+            gameType: "multiplayer",
+            gameId: challengeData.gameId,
+            challengeId,
+            settings: {}, // Additional game settings if needed.
+          });
           return;
         }
+        
+        // For status "pending", keep the active challenge stored.
         setChallenge(challengeData);
 
         // Update partner status based on the user's role.
         if (currentUser.uid === challengeData.challengerId) {
-          // I'm the challenger; my partner joins if challengedJoined is true.
-          setPartnerStatus(
-            challengeData.challengedJoined ? "joined" : "waiting"
-          );
+          setPartnerStatus(challengeData.challengedJoined ? "joined" : "waiting");
         } else if (currentUser.uid === challengeData.challengedId) {
-          // I'm the challenged friend; my partner joins if challengerJoined is true.
-          setPartnerStatus(
-            challengeData.challengerJoined ? "joined" : "waiting"
-          );
+          setPartnerStatus(challengeData.challengerJoined ? "joined" : "waiting");
         }
 
-        // Join socket room with the correct gameId
+        // Join socket room with the correct gameId.
         socket.emit("joinGame", {
           gameId: challengeData.gameId,
           userId: currentUser.uid,
@@ -72,7 +78,7 @@ export default function PendingRoomScreen() {
     });
 
     return () => unsubscribe();
-  }, [challengeId]);
+  }, [challengeId, gameInitiated, navigation]);
 
   // Create a challenge room id based on the two users - for simplicity we'll use a concatenation.
   const challengeRoomId =
@@ -97,6 +103,9 @@ export default function PendingRoomScreen() {
           await updateDoc(challengeRef, { challengedJoined: true });
         }
       }
+      // Persist the active challenge ID locally so that the RejoinChallengeButton finds it.
+      await AsyncStorage.setItem("activeChallenge", challengeId);
+
       // Notify the room that this user has joined.
       socket.emit("playerJoined", {
         userId: currentUser.uid,
@@ -133,6 +142,9 @@ export default function PendingRoomScreen() {
             await createMissedChallengeLog();
           }
         }
+
+        // Remove the active challenge ID
+        AsyncStorage.removeItem("activeChallenge");
       }
     });
 
@@ -250,32 +262,40 @@ export default function PendingRoomScreen() {
   };
 
   // Handler for starting the game once the friend has joined.
-  const handleStartGame = async () => {
-    const challengeRef = doc(database, "challenges", challengeId);
-    // Generate a new gameId using the current timestamp.
-    const newGameId = Date.now().toString();
-    // Update the challenge document with both accepted status and the new gameId.
-    await updateDoc(challengeRef, {
-      status: "accepted",
-      gameId: newGameId,
-    });
-
-    // Emit a socket event to notify the other user.
-    socket.emit("startGame", {
-      gameId: newGameId,
-      challengerId: currentUser.uid,
-      challengedId: challengedFriend.uid,
-    });
-
-    // Navigate to the GamePlay screen with the new gameId.
-    navigation.replace("GamePlay", {
-      gameType: "multiplayer",
-      gameId: newGameId,
-      challengeId,
-      // challengerId: currentUser.uid,
-      // challengedId: challengedFriend.uid,
-      settings: {}, // Add any specific game settings if needed.
-    });
+  const startGame = async () => {
+    try {
+      // Get the challenge reference.
+      const challengeRef = doc(database, "challenges", challengeId);
+      
+      // Update the challenge document with active status, joined flags, and a gameStarted indicator.
+      await updateDoc(challengeRef, { 
+        status: "active",
+        acceptedAt: serverTimestamp(),
+        challengerJoined: true,
+        challengedJoined: true,
+        gameStarted: true,
+      });
+      
+      // Set the local flag so that further cancellation logic is ignored.
+      setGameInitiated(true);
+      
+      // Store the challenge as the active one for rejoining later
+      await AsyncStorage.setItem("activeChallenge", JSON.stringify({
+        challengeId,
+        gameId: challenge.gameId
+      }));
+  
+      // Navigate to the gameplay screen
+      navigation.replace("GamePlay", {
+        gameType: "multiplayer",
+        gameId: challenge.gameId,
+        challengeId,
+        settings: {}, // Additional game settings if needed.
+      });
+    } catch (error) {
+      console.error("Error starting game:", error);
+      Alert.alert("Error", "Failed to start the game. Please try again.");
+    }
   };
 
   return (
@@ -293,7 +313,7 @@ export default function PendingRoomScreen() {
         <>
           <TouchableOpacity
             style={styles.startButton}
-            onPress={handleStartGame}
+            onPress={startGame}
           >
             <Text style={styles.buttonText}>Start Game</Text>
           </TouchableOpacity>

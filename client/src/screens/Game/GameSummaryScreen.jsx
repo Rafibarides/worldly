@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Image } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Image, BackHandler } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Animated, { 
   useAnimatedStyle, 
@@ -17,11 +17,15 @@ import countriesByContinent from '../../utils/countries_by_continent.json';
 // Import the country helpers for normalization and territory matching
 import { normalizeCountryName, getTerritoryMatch } from '../../utils/countryHelpers';
 // NEW: Import Firestore update functions and database
-import { updateDoc, increment, doc } from 'firebase/firestore';
+import { updateDoc, increment, doc, setDoc, onSnapshot, collection, query, where, getDocs, limit, serverTimestamp } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 // NEW: Import the auth context to get currentUser and setCurrentUser
 import { useAuth } from '../../contexts/AuthContext';
 import calculateLevel from '../../utils/leveling';  // <-- New import for leveling
+// Global flag to ensure that a multiplayer win is only updated once per gameId
+let globalGameWinUpdateFlags = {};
+import RejoinChallengeButton from '../../components/RejoinChallengeButton';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Displays a summary of the solo game:
@@ -40,7 +44,9 @@ export default function GameSummaryScreen() {
     guessedCountries = [], 
     gameType,
     result, // "Winner", "Loser", or "Tied"
-    opponentScore 
+    opponentScore,
+    gameId,         // Added gameId to access the game identifier in multiplayer mode
+    opponent        // Added opponent to access opponent data
   } = route.params || {};
 
   // Fixed totals for each continent as provided:
@@ -61,6 +67,17 @@ export default function GameSummaryScreen() {
     console.log('finalScore:', finalScore);
     console.log('totalCountries:', totalCountries);
     console.log('guessedCountries:', guessedCountries);
+  }, []);
+
+  // Override hardware back button to prevent "GO_BACK" warnings
+  useEffect(() => {
+    const backAction = () => {
+      // Returning true disables the default back action
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
   }, []);
 
   // Iterate over each continent in the fixed totals.
@@ -103,6 +120,10 @@ export default function GameSummaryScreen() {
 
   // NEW: Get current user and setCurrentUser from the Auth context
   const { currentUser, setCurrentUser, fetchCurrentUser } = useAuth();
+  // Define friendIds based on currentUser's friends list (default to empty array if not defined)
+  const friendIds = currentUser?.friends || [];
+  // Add state for friendship statuses
+  const [friendshipStatuses, setFriendshipStatuses] = useState({});
 
   // NEW: When the summary screen mounts, update the user document for each continent at 100%
   useEffect(() => {
@@ -347,15 +368,178 @@ export default function GameSummaryScreen() {
     }
   };
 
-  // Somewhere near the top of your component (e.g., in a useEffect hook handling post game updates)
+  // Increment gamesPlayed for both solo and multiplayer games
   useEffect(() => {
-    // Increment gamesPlayed for both solo and multiplayer games
     if (gameType === 'solo' || gameType === 'multiplayer') {
       updateDoc(doc(database, 'users', currentUser.uid), {
         "stats.gamesPlayed": increment(1)
       });
     }
   }, [gameType]);
+
+  // NEW: Increment gamesWon for multiplayer games when the user wins.
+  // Use a global flag object keyed by gameId to ensure that the update is executed only once per game.
+  useEffect(() => {
+    console.log("gamesWon effect check:", { 
+      gameType, 
+      result, 
+      currentUserId: currentUser?.uid, 
+      gameId, 
+      updateFlag: globalGameWinUpdateFlags[gameId]
+    });
+    if (
+      gameType === 'multiplayer' &&
+      currentUser &&
+      gameId &&
+      result &&
+      result.toLowerCase().trim() === 'winner' &&
+      !globalGameWinUpdateFlags[gameId]
+    ) {
+      // Set the global flag for the current gameId immediately to prevent multiple increments.
+      globalGameWinUpdateFlags[gameId] = true;
+      updateDoc(doc(database, 'users', currentUser.uid), {
+        "stats.gamesWon": increment(1)
+      })
+      .then(() => {
+        console.log(`Incremented gamesWon for user ${currentUser.uid} for gameId ${gameId}`);
+      })
+      .catch((error) => {
+        console.error("Error updating gamesWon:", error);
+      });
+    }
+  }, [gameType, result, currentUser, gameId]);
+
+  // NEW: Presence handling using Firestore with heartbeat for robust offline detection
+  useEffect(() => {
+    if (gameType !== 'multiplayer' || !gameId || !currentUser || !opponent) return;
+    
+    const presenceDocRef = doc(database, 'gamePresences', gameId);
+    
+    // Helper function to update the current user's presence (with heartbeat)
+    const updatePresence = () => {
+      setDoc(
+        presenceDocRef,
+        { [currentUser.uid]: { online: true, lastActive: Date.now() } },
+        { merge: true }
+      );
+    };
+    
+    // Set initial presence
+    updatePresence();
+    
+    // Set an interval to update the lastActive timestamp every 5 seconds
+    const intervalId = setInterval(() => {
+      updatePresence();
+    }, 5000);
+    
+    // Listen to changes in the presence document for the opponent's status
+    const unsubscribe = onSnapshot(presenceDocRef, (snapshot) => {
+      const data = snapshot.data();
+      if (data && data[opponent.uid]) {
+        const { online, lastActive } = data[opponent.uid];
+        const threshold = 7000; // 7 seconds threshold
+        if (!online || (Date.now() - lastActive > threshold)) {
+          setOpponentPresent(false);
+        } else {
+          setOpponentPresent(true);
+        }
+      } else {
+        setOpponentPresent(false);
+      }
+    });
+    
+    return () => {
+      clearInterval(intervalId);
+      // Mark current user as offline on unmount
+      updateDoc(presenceDocRef, {
+        [currentUser.uid]: { online: false, lastActive: Date.now() },
+      });
+      unsubscribe();
+    };
+  }, [gameId, currentUser, opponent, gameType]);
+
+  // Subscribe to friendship statuses for real-time updates.
+  useEffect(() => {
+    if (!currentUser || !friendIds || friendIds.length === 0) return;
+
+    const friendshipsRef = collection(database, "friendships");
+
+    const qSent = query(
+      friendshipsRef,
+      where("status", "in", ["pending", "confirmed"]),
+      where("requesterId", "==", currentUser.uid),
+      where("requesteeId", "in", friendIds)
+    );
+
+    const unsubscribeSent = onSnapshot(qSent, (snapshot) => {
+      const statuses = {};
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        statuses[data.requesteeId] = data.status;
+      });
+      // Merge with any previously set statuses.
+      setFriendshipStatuses(prev => ({ ...prev, ...statuses }));
+    });
+
+    const qReceived = query(
+      friendshipsRef,
+      where("status", "in", ["pending", "confirmed"]),
+      where("requesteeId", "==", currentUser.uid),
+      where("requesterId", "in", friendIds)
+    );
+
+    const unsubscribeReceived = onSnapshot(qReceived, (snapshot) => {
+      const statuses = {};
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        statuses[data.requesterId] = data.status;
+      });
+      setFriendshipStatuses(prev => ({ ...prev, ...statuses }));
+    });
+
+    return () => {
+      unsubscribeSent();
+      unsubscribeReceived();
+    };
+  }, [currentUser, friendIds]);
+
+  // Add this useEffect to mark challenge as completed when game ends
+  useEffect(() => {
+    const markChallengeCompleted = async () => {
+      // Only do this for multiplayer games that have a gameId
+      if (gameType === 'multiplayer' && gameId) {
+        try {
+          // Query to find the challenge with this gameId
+          const challengesRef = collection(database, 'challenges');
+          const challengeQuery = query(
+            challengesRef,
+            where('gameId', '==', gameId),
+            limit(1)
+          );
+          
+          const querySnapshot = await getDocs(challengeQuery);
+          
+          if (!querySnapshot.empty) {
+            const challengeDoc = querySnapshot.docs[0];
+            // Update the challenge status to completed
+            await updateDoc(doc(database, 'challenges', challengeDoc.id), {
+              status: 'completed',
+              completedAt: serverTimestamp()
+            });
+            
+            console.log('Challenge marked as completed:', challengeDoc.id);
+            
+            // Clear the active challenge from AsyncStorage
+            AsyncStorage.removeItem('activeChallenge');
+          }
+        } catch (error) {
+          console.error('Error marking challenge as completed:', error);
+        }
+      }
+    };
+    
+    markChallengeCompleted();
+  }, [gameId, gameType]); // Only run once when component mounts and when these values are available
 
   return (
     <AnimatedLinearGradient 

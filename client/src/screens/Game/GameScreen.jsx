@@ -33,6 +33,7 @@ import {
 } from "firebase/firestore";
 import { database } from "../../services/firebase";
 import { useNavigation } from "@react-navigation/native";
+import RejoinChallengeButton from '../../components/RejoinChallengeButton';
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -77,7 +78,6 @@ export default function GameScreen() {
 
   const handleStartSoloGame = () => {
     setIsLoading(true);
-    // Simulate API delay
     setTimeout(() => {
       setIsLoading(false);
       navigation.navigate("GamePlay", {
@@ -300,6 +300,11 @@ export default function GameScreen() {
             </View>
             <MaterialIcons name="arrow-forward-ios" size={24} color="#ffc268" />
           </AnimatedTouchableOpacity>
+        </View>
+
+        {/* NEW: Container for the Rejoin Challenge Button */}
+        <View style={styles.rejoinButtonContainer}>
+          <RejoinChallengeButton currentUser={currentUser} />
         </View>
 
         {/* Settings info */}
@@ -566,5 +571,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: "red",
     borderColor: "#fff",
+  },
+  // NEW: Style for the rejoin button container
+  rejoinButtonContainer: {
+    marginTop: 20,
+    alignItems: 'center'
   },
 });

@@ -26,7 +26,7 @@ import {
   getTerritoriesForCountry,
 } from "../../utils/countryHelpers";
 import recognizedCountries from "../../utils/recognized_countries.json";
-import { updateDoc, increment, doc, onSnapshot } from "firebase/firestore";
+import { updateDoc, increment, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { database } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import socket from "../../services/socket";
@@ -159,19 +159,32 @@ export default function GamePlayScreen({ route, navigation }) {
       if (gameType === "solo") {
         handleGameEnd();
       } else if (gameType === "multiplayer" && gameData?.scoreList?.length > 0) {
-        const myEntry = gameData.scoreList.find(entry => entry.uid === currentUser.uid);
-        const opponentEntry = gameData.scoreList.find(entry => entry.uid !== currentUser.uid);
-        const myScore = myEntry ? myEntry.score : 0;
-        const opponentScore = opponentEntry ? opponentEntry.score : 0;
-
-        let result = "Tied";
-        if (myScore > opponentScore) {
-          result = "Winner";
-        } else if (myScore < opponentScore) {
-          result = "Loser";
-        }
-
-        setTimeout(() => {
+        (async () => {
+          try {
+            // Update the challenge status to "completed" in the database.
+            const challengeRef = doc(database, "challenges", challengeId);
+            await updateDoc(challengeRef, { 
+              status: "completed",
+              completedAt: serverTimestamp()
+            });
+          } catch (error) {
+            console.error("Error updating challenge status to completed:", error);
+          }
+          
+          // Evaluate scores and determine the result.
+          const myEntry = gameData.scoreList.find(entry => entry.uid === currentUser.uid);
+          const opponentEntry = gameData.scoreList.find(entry => entry.uid !== currentUser.uid);
+          const myScore = myEntry ? myEntry.score : 0;
+          const opponentScore = opponentEntry ? opponentEntry.score : 0;
+    
+          let result = "Tied";
+          if (myScore > opponentScore) {
+            result = "Winner";
+          } else if (myScore < opponentScore) {
+            result = "Loser";
+          }
+    
+          // Navigate to the GameSummary screen with the final results.
           navigation.replace("GameSummary", {
             result,
             gameData,
@@ -179,9 +192,10 @@ export default function GamePlayScreen({ route, navigation }) {
             finalScore: myScore,
             opponentScore,
             totalCountries: recognizedCountries.recognized_countries.length,
-            guessedCountries: guessedCountriesRef.current
+            guessedCountries: guessedCountriesRef.current,
+            gameId
           });
-        }, 0);
+        })();
       }
     }
   }, [timeLeft, gameType, gameData, currentUser?.uid, navigation]);
@@ -226,6 +240,46 @@ export default function GamePlayScreen({ route, navigation }) {
       };
     }
   }, [gameType, currentUser.uid, gameId]);
+
+  // Add this useEffect at the beginning of the component to ensure the challenge stays active
+  useEffect(() => {
+    // Only run this for multiplayer games with a challengeId
+    if (gameType === "multiplayer" && challengeId) {
+      try {
+        // Get a reference to the challenge document
+        const challengeRef = doc(database, "challenges", challengeId);
+        
+        // Update the challenge to ensure it stays active
+        // This runs when the GamePlayScreen first mounts
+        updateDoc(challengeRef, {
+          status: "active",
+          gameStarted: true,
+          // Set both joined flags to true to prevent cancellation logic
+          challengerJoined: true,
+          challengedJoined: true
+        });
+        
+        // Create a listener that will maintain the active status
+        const unsubscribe = onSnapshot(challengeRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // If the status has been changed to "cancelled" but the game is still in progress
+            // (timeLeft > 0), restore it to "active"
+            if (data.status === "cancelled" && timeLeft > 0 && data.gameStarted) {
+              updateDoc(challengeRef, {
+                status: "active"
+              });
+            }
+          }
+        });
+        
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Error ensuring challenge stays active:", error);
+      }
+    }
+  }, [challengeId, gameType, timeLeft]);
 
   const mapContainerStyle = {
     flex: 1,
