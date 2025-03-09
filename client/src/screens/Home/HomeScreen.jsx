@@ -79,7 +79,10 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <ProfileView user={currentUser} />
+        <ProfileView 
+          user={currentUser} 
+          isCurrentUser={true}
+        />
         {/* Other HomeScreen content can follow here */}
       </ScrollView>
     </AnimatedLinearGradient>

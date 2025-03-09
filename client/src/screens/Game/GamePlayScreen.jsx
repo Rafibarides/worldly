@@ -629,8 +629,12 @@ export default function GamePlayScreen({ route, navigation }) {
           <MaterialIcons name="timer" size={24} color="#666" />
           <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
         </View>
-        <AnimatedText style={[styles.score, scoreAnimatedStyle]}></AnimatedText>
-        {!!gameData?.scoreList?.length &&
+        {gameType === "solo" ? (
+          <Text style={styles.score}>
+            Guessed: {guessedCountries.length} countries
+          </Text>
+        ) : (
+          !!gameData?.scoreList?.length &&
           gameData?.scoreList?.map((e) => {
             let isCur = e.uid == currentUser.uid;
             return (
@@ -655,7 +659,8 @@ export default function GamePlayScreen({ route, navigation }) {
                 </AnimatedText>
               </View>
             );
-          })}
+          })
+        )}
       </View>
 
       <View style={styles.inputSection}>
@@ -675,15 +680,6 @@ export default function GamePlayScreen({ route, navigation }) {
       <Animated.View style={[styles.toastWrapper, toastAnimatedStyle]}>
         <Text style={styles.toastText}>- Already Guessed</Text>
       </Animated.View>
-
-      {/* NEW: Display guessed count overlay for solo game */}
-      { gameType === "solo" && (
-        <View style={styles.guessedCountContainer}>
-          <Text style={styles.guessedCountText}>
-            Guessed: {guessedCountries.length} countries
-          </Text>
-        </View>
-      )}
 
       <AnimatedView style={[{ flex: 1 }, mapContainerStyle]}>
         <MapView
@@ -767,20 +763,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "700",
-  },
-  guessedCountContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5,
-    zIndex: 2,
-  },
-  guessedCountText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

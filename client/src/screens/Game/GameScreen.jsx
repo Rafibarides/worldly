@@ -273,6 +273,7 @@ export default function GameScreen() {
         <View style={styles.contentContainer}>
           <AnimatedTouchableOpacity
             style={[styles.gameOption, animatedSoloOptionStyle]}
+            activeOpacity={1}
             onPress={handleStartSoloGame}
             disabled={isLoading}
           >
@@ -288,6 +289,7 @@ export default function GameScreen() {
 
           <AnimatedTouchableOpacity
             style={[styles.gameOption, animatedMultiOptionStyle]}
+            activeOpacity={1}
             onPress={handleStartMultiplayerGame}
             disabled={isLoading}
           >

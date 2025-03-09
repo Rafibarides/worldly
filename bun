@@ -1,0 +1,22 @@
+
+Preparing [36mto[0m add changes.
+Adding specified files...
+
+ M client/app.json
+ M client/package-lock.json
+ M client/package.json
+ M client/src/components/MapView/index.jsx
+ M client/src/components/ProfileView.jsx
+ M client/src/components/RejoinChallengeButton.jsx
+ M client/src/screens/Game/GamePlayScreen.jsx
+ M client/src/screens/Game/GameScreen.jsx
+ M client/src/screens/Home/HomeScreen.jsx
+?? bun
+?? client/android/
+?? client/ios/
+
+[32mFiles have been staged. Use [33m'cm <message>'[0m to commit these changes.[0m
+
+
+[32mGreen = Ready for commit[0m, [31mRed = Not staged for commit[0m
+

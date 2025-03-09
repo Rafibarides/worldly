@@ -17,8 +17,11 @@ import {
   addDoc,
   serverTimestamp,
   updateDoc,
+  doc,
 } from "firebase/firestore";
 import { database } from "../services/firebase";
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function ProfileView({
   user,
@@ -27,7 +30,7 @@ export default function ProfileView({
   showChallenge,
 }) {
   const navigation = useNavigation();
-  const { currentUser } = useAuth();
+  const { currentUser, setCurrentUser } = useAuth();
   const isCurrentUser = currentUser && user && currentUser.uid === user.uid;
 
   const renderBadges = () => {
@@ -69,6 +72,106 @@ export default function ProfileView({
     });
   };
 
+  const handleChangeAvatar = async () => {
+    try {
+      // You can request permission if necessary (optional)
+      // const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // if (permissionResult.granted === false) {
+      //   Alert.alert("Permission required", "Permission to access camera roll is required!");
+      //   return;
+      // }
+
+      const options = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      };
+
+      const result = await ImagePicker.launchImageLibraryAsync(options);
+
+      if (result.canceled) {
+        console.log('User cancelled image picker');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        const uploadUrl = await uploadImageAsync(uri);
+        
+        if (uploadUrl) {
+          // Update Firestore with new avatar URL
+          const userRef = doc(database, "users", user.uid);
+          await updateDoc(userRef, {
+            avatarUrl: uploadUrl
+          });
+          
+          // Update local state if it's the current user
+          if (isCurrentUser) {
+            setCurrentUser(prev => ({ ...prev, avatarUrl: uploadUrl }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error changing avatar:', error);
+    }
+  };
+
+  const uploadImageAsync = async (uri) => {
+    try {
+      // Get Firebase storage instance
+      const storage = getStorage();
+      
+      // Log for debugging
+      console.log("Starting image upload process");
+      console.log("Image URI:", uri);
+      
+      // Fetch the image as a blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      console.log("Blob size:", blob.size);
+      
+      // Create a unique filename
+      const filename = `avatar_${Date.now()}`;
+      
+      // Create a reference to the storage location
+      // Note: Don't include the gs:// prefix in the ref path
+      const storageRef = ref(storage, `avatars/${filename}`);
+      
+      console.log("Storage reference created");
+      
+      // Upload the blob with metadata
+      const metadata = {
+        contentType: 'image/jpeg', // Default to JPEG
+      };
+      
+      console.log("Starting upload to Firebase");
+      const snapshot = await uploadBytes(storageRef, blob, metadata);
+      console.log("Upload completed successfully");
+      
+      // Get the download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      console.log("Download URL obtained:", downloadURL);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      
+      // More detailed error logging
+      if (error.code) {
+        console.error('Error code:', error.code);
+      }
+      
+      if (error.message) {
+        console.error('Error message:', error.message);
+      }
+      
+      if (error.serverResponse) {
+        console.error('Server response:', error.serverResponse);
+      }
+      
+      return null;
+    }
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* UPDATED HEADER ROW: Left corner displays settings (or challenge) and right corner displays level pill */}
@@ -94,14 +197,25 @@ export default function ProfileView({
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <View style={styles.avatarContainer}>
-          <Image
-            style={styles.avatar}
-            source={{
-              uri:
-                user?.avatarUrl ||
-                "https://api.dicebear.com/9.x/avataaars/png?seed=default",
-            }}
-          />
+          {isCurrentUser ? (
+            <TouchableOpacity onPress={handleChangeAvatar}>
+              <Image
+                style={styles.avatar}
+                source={{
+                  uri: user?.avatarUrl ||
+                    "https://api.dicebear.com/9.x/avataaars/png?seed=default",
+                }}
+              />
+            </TouchableOpacity>
+          ) : (
+            <Image
+              style={styles.avatar}
+              source={{
+                uri: user?.avatarUrl ||
+                  "https://api.dicebear.com/9.x/avataaars/png?seed=default",
+              }}
+            />
+          )}
           <Text style={styles.username}>{user?.username}</Text>
         </View>
         {showChallenge ? (
@@ -279,6 +393,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 4,
     borderColor: "#aed69d",
+    marginBottom: 10,
+    zIndex: 1,
   },
   username: {
     fontSize: 24,

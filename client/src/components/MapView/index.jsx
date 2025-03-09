@@ -67,7 +67,7 @@ export default function MapView({
               fillColor = guessMine?.uid
                 ? guessMine.uid === currentUid
                   ? "#4bd670"
-                  : "blue"
+                  : "#10b1e6"
                 : "#FFF9C4";
             }
             return (
