@@ -1,20 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockBadges } from '../../utils/mockData';
+import Badge from '../../components/Badge/Badge';
 
 // Create an animated version of LinearGradient:
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function BadgesListScreen({ navigation }) {
+  const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [selectedBadgeId, setSelectedBadgeId] = useState(null);
+
   const renderBadgesList = () => {
     return mockBadges.map((badge) => (
-      <View key={badge.id} style={styles.badgeItem}>
-        <Text style={styles.badgeItemIcon}>{badge.icon}</Text>
+      <TouchableOpacity 
+        key={badge.id} 
+        style={styles.badgeItem}
+        onPress={() => {
+          setSelectedBadgeId(badge.id);
+          setBadgeModalVisible(true);
+        }}
+      >
+        <Image source={badge.icon} style={styles.badgeItemIcon} />
         <Text style={styles.badgeItemName}>{badge.name}</Text>
-      </View>
+      </TouchableOpacity>
     ));
   };
 
@@ -35,6 +46,12 @@ export default function BadgesListScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.badgesListContainer}>
          {renderBadgesList()}
       </ScrollView>
+      
+      <Badge 
+        visible={badgeModalVisible}
+        onClose={() => setBadgeModalVisible(false)}
+        initialBadgeId={selectedBadgeId}
+      />
     </AnimatedLinearGradient>
   );
 }
@@ -68,7 +85,8 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   badgeItemIcon: {
-    fontSize: 32,
+    width: 32,
+    height: 32,
     marginRight: 15,
     color: '#fff',
   },

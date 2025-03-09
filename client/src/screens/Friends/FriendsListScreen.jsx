@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: "#fff",
-    marginTop: 60,
+    paddingTop: 60,
   },
   searchContainer: {
     flexDirection: "row",
@@ -341,7 +341,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     marginRight: 12,
     backgroundColor: "#f0f0f0",
-    padding: 3,
   },
   username: {
     fontSize: 18,

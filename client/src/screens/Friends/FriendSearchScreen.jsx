@@ -63,27 +63,37 @@ export default function FriendSearchScreen() {
   const fetchFriendshipStatuses = async (friendIds) => {
     const friendshipsRef = collection(database, "friendships");
     const statuses = {};
-    const qSent = query(
-      friendshipsRef,
-      where("status", "in", ["pending", "confirmed"]),
-      where("requesterId", "==", currentUser.uid),
-      where("requesteeId", "in", friendIds)
-    );
-    const qReceived = query(
-      friendshipsRef,
-      where("status", "in", ["pending", "confirmed"]),
-      where("requesteeId", "==", currentUser.uid),
-      where("requesterId", "in", friendIds)
-    );
-    const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
-    snapshotSent.forEach(docSnap => {
-      const data = docSnap.data();
-      statuses[data.requesteeId] = data.status;
-    });
-    snapshotReceived.forEach(docSnap => {
-      const data = docSnap.data();
-      statuses[data.requesterId] = data.status;
-    });
+    
+    // Process friendIds in chunks of 30 to avoid the query limit
+    const chunkSize = 30;
+    for (let i = 0; i < friendIds.length; i += chunkSize) {
+      const chunk = friendIds.slice(i, i + chunkSize);
+      
+      const qSent = query(
+        friendshipsRef,
+        where("status", "in", ["pending", "confirmed"]),
+        where("requesterId", "==", currentUser.uid),
+        where("requesteeId", "in", chunk)
+      );
+      const qReceived = query(
+        friendshipsRef,
+        where("status", "in", ["pending", "confirmed"]),
+        where("requesteeId", "==", currentUser.uid),
+        where("requesterId", "in", chunk)
+      );
+      
+      const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
+      
+      snapshotSent.forEach(docSnap => {
+        const data = docSnap.data();
+        statuses[data.requesteeId] = data.status;
+      });
+      snapshotReceived.forEach(docSnap => {
+        const data = docSnap.data();
+        statuses[data.requesterId] = data.status;
+      });
+    }
+    
     setFriendshipStatuses(statuses);
   };
 
@@ -137,7 +147,6 @@ export default function FriendSearchScreen() {
       }
     } catch (err) {
       console.error("Error searching users: ", err);
-      setError("Error searching users.");
     }
     setLoading(false);
   };
@@ -178,7 +187,6 @@ export default function FriendSearchScreen() {
         }}
       />
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
-      {error && <Text style={styles.errorText}>{error}</Text>}
       <FlatList
         data={searchTerm.trim() ? results : recentUsers}
         keyExtractor={(item) => item.uid}
@@ -241,7 +249,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
-    marginTop: 60,
+    paddingTop: 60,
   },
   title: {
     fontSize: 24,
@@ -301,10 +309,9 @@ const styles = StyleSheet.create({
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 100,
+    borderRadius: 1000,
     marginRight: 12,
     backgroundColor: '#f0f0f0',
-    padding: 3,
   },
   sectionHeader: {
     fontSize: 14,

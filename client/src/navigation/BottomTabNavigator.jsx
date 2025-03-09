@@ -92,7 +92,7 @@ function GameStackNavigator() {
       <GameStack.Screen 
         name="PendingRoom" 
         component={PendingRoomScreen}
-        options={{ headerShown: true, title: 'Pending Challenge' }}
+        options={{ headerShown: false }}
       />
     </GameStack.Navigator>
   );

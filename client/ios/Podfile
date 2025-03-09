@@ -63,5 +63,15 @@ target 'worldly' do
         end
       end
     end
+    
+    # Add Firebase configuration to increase query limit
+    installer.pods_project.targets.each do |target|
+      if target.name == 'FirebaseFirestore'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FIRESTORE_QUERY_NORMALIZATION_LIMIT=100'
+        end
+      end
+    end
   end
 end

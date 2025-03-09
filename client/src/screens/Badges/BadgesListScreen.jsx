@@ -1,21 +1,32 @@
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import Badge from '../../components/Badge/Badge';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function BadgesListScreen() {
   const navigation = useNavigation();
   const currentUser = mockUsers[0];
+  const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [selectedBadgeId, setSelectedBadgeId] = useState(null);
 
   const renderBadges = () => {
     return currentUser.badges.map((badgeId) => {
       const badge = mockBadges.find(b => b.id === badgeId);
       return (
-        <View key={badgeId} style={styles.badgeRow}>
+        <TouchableOpacity 
+          key={badgeId} 
+          style={styles.badgeRow}
+          onPress={() => {
+            setSelectedBadgeId(badgeId);
+            setBadgeModalVisible(true);
+          }}
+        >
           <Image 
             source={require('../../../assets/images/badge-hero.png')}
             style={styles.badgeHero}
@@ -32,38 +43,34 @@ export default function BadgesListScreen() {
             <Text style={styles.badgeName}>{badge.name}</Text>
             <Text style={styles.badgeDescription}>{badge.description || 'Achievement unlocked!'}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       );
     });
   };
 
   return (
-    <AnimatedLinearGradient 
+    <AnimatedLinearGradient
       colors={['#70ab51', '#7dbc63', '#70ab51']}
       locations={[0, 0.5, 0.06]}
       start={{ x: 0, y: 0.5 }}
       end={{ x: 0.06, y: 0.5 }}
       style={styles.container}
     >
-      <View style={styles.headerRow}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <MaterialIcons name="keyboard-arrow-left" size={32} color="#fff" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back-ios" size={24} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('ProfileSettings')}
-        >
-          <MaterialIcons name="more-vert" size={24} color="#fff" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>All Badges</Text>
       </View>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.badgesList}>
-          {renderBadges()}
-        </View>
+      <ScrollView contentContainerStyle={styles.badgesContainer}>
+        {renderBadges()}
       </ScrollView>
+
+      <Badge 
+        visible={badgeModalVisible}
+        onClose={() => setBadgeModalVisible(false)}
+        initialBadgeId={selectedBadgeId}
+      />
     </AnimatedLinearGradient>
   );
 }
@@ -71,28 +78,32 @@ export default function BadgesListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 60,
   },
-  headerRow: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 5,
-    marginTop: 60,
-    marginBottom: 20,
+    alignItems: 'center',
+    padding: 10,
+    paddingHorizontal: 20,
   },
   backButton: {
     padding: 8,
   },
-  settingsButton: {
-    padding: 8,
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   scrollView: {
     flex: 1,
     padding: 20,
     paddingTop: 0,
   },
-  badgesList: {
+  badgesContainer: {
     gap: 15,
+    width: '90%',
+    alignSelf: 'center',
   },
   badgeRow: {
     flexDirection: 'row',

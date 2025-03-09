@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
 import { database } from "../services/firebase";
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import Badge from './Badge/Badge';
 
 export default function ProfileView({
   user,
@@ -32,6 +33,8 @@ export default function ProfileView({
   const navigation = useNavigation();
   const { currentUser, setCurrentUser } = useAuth();
   const isCurrentUser = currentUser && user && currentUser.uid === user.uid;
+  const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [selectedBadgeId, setSelectedBadgeId] = useState(null);
 
   const renderBadges = () => {
     const earnedBadges = new Set(user?.badges || []);
@@ -46,7 +49,14 @@ export default function ProfileView({
       const badge = mockBadges.find((b) => b.id === badgeId);
       if (badge) {
         return (
-          <View key={badgeId} style={styles.badge}>
+          <TouchableOpacity 
+            key={badgeId} 
+            style={styles.badge}
+            onPress={() => {
+              setSelectedBadgeId(badgeId);
+              setBadgeModalVisible(true);
+            }}
+          >
             <Image
               source={require("../../assets/images/badge-hero.png")}
               style={styles.badgeHero}
@@ -65,7 +75,7 @@ export default function ProfileView({
               />
             </View>
             <Text style={styles.badgeName}>{badge.name}</Text>
-          </View>
+          </TouchableOpacity>
         );
       }
       return null;
@@ -302,20 +312,28 @@ export default function ProfileView({
       <View style={styles.badgesSection}>
         <View style={styles.badgesHeaderRow}>
           <Text style={styles.sectionTitle}>Badges</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("BadgesList", { user })}
-          >
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
+          {isCurrentUser && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("BadgesList", { user })}
+            >
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10 }}
+          contentContainerStyle={styles.badgesContainer}
         >
           {renderBadges()}
         </ScrollView>
       </View>
+
+      <Badge 
+        visible={badgeModalVisible}
+        onClose={() => setBadgeModalVisible(false)}
+        initialBadgeId={selectedBadgeId}
+      />
     </ScrollView>
   );
 }
@@ -388,7 +406,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 90,
     height: 90,
-    borderRadius: 50,
+    borderRadius: 100,
     backgroundColor: "#ffffff",
     overflow: "hidden",
     borderWidth: 4,
@@ -558,5 +576,11 @@ const styles = StyleSheet.create({
     color: "grey",
     fontSize: 16,
     marginLeft: 10,
+  },
+  badgesSection: {
+    padding: 20,
+  },
+  badgesContainer: {
+    paddingHorizontal: 10,
   },
 });

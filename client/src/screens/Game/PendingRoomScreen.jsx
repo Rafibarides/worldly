@@ -10,9 +10,29 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import socket from "../../services/socket";
 import { useAuth } from "../../contexts/AuthContext";
-import { doc, onSnapshot, getDoc, updateDoc, collection, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  doc,
+  onSnapshot,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+  deleteDoc,
+} from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { database } from "../../services/firebase";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialIcons } from "@expo/vector-icons";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 
 export default function PendingRoomScreen() {
   const navigation = useNavigation();
@@ -28,15 +48,70 @@ export default function PendingRoomScreen() {
   // Add a ref to prevent duplicate missed challenge logs
   const missedLogCreated = useRef(false);
 
+  // Add animation values
+  const startButtonScale = useSharedValue(1);
+  const waitingOpacity = useSharedValue(1);
+  const iconRotation = useSharedValue(0);
+
+  // Animation for the waiting indicator
+  useEffect(() => {
+    if (partnerStatus !== "joined") {
+      waitingOpacity.value = withRepeat(
+        withSequence(
+          withDelay(500, withSpring(0.6)),
+          withDelay(500, withSpring(1))
+        ),
+        -1,
+        true
+      );
+
+      iconRotation.value = withRepeat(
+        withTiming(360, { duration: 2000 }),
+        -1,
+        false
+      );
+    } else {
+      // When partner joins, animate the start button
+      startButtonScale.value = withRepeat(
+        withSequence(withSpring(1.05), withSpring(1)),
+        3,
+        true
+      );
+    }
+  }, [partnerStatus]);
+
+  // Animated styles
+  const waitingAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: waitingOpacity.value,
+    };
+  });
+
+  const startButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: startButtonScale.value }],
+    };
+  });
+
+  const iconAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${iconRotation.value}deg` }],
+    };
+  });
+
   useEffect(() => {
     // Listen to challenge document changes
     const challengeRef = doc(database, "challenges", challengeId);
     const unsubscribe = onSnapshot(challengeRef, (docSnap) => {
       if (docSnap.exists()) {
         const challengeData = docSnap.data();
-        
+
         // If the challenge has been cancelled or completed and the game hasn't been initiated, then leave.
-        if (!gameInitiated && (challengeData.status === "cancelled" || challengeData.status === "completed")) {
+        if (
+          !gameInitiated &&
+          (challengeData.status === "cancelled" ||
+            challengeData.status === "completed")
+        ) {
           // Only leave if the game has not started.
           AsyncStorage.removeItem("activeChallenge");
           navigation.goBack();
@@ -44,7 +119,8 @@ export default function PendingRoomScreen() {
         } else if (
           // If the challenge status is active (or accepted) and the gameId exists,
           // navigate to GamePlay only if the game hasn't been initiated already.
-          (challengeData.status === "active" || challengeData.status === "accepted") &&
+          (challengeData.status === "active" ||
+            challengeData.status === "accepted") &&
           challengeData.gameId &&
           !gameInitiated
         ) {
@@ -58,15 +134,19 @@ export default function PendingRoomScreen() {
           });
           return;
         }
-        
+
         // For status "pending", keep the active challenge stored.
         setChallenge(challengeData);
 
         // Update partner status based on the user's role.
         if (currentUser.uid === challengeData.challengerId) {
-          setPartnerStatus(challengeData.challengedJoined ? "joined" : "waiting");
+          setPartnerStatus(
+            challengeData.challengedJoined ? "joined" : "waiting"
+          );
         } else if (currentUser.uid === challengeData.challengedId) {
-          setPartnerStatus(challengeData.challengerJoined ? "joined" : "waiting");
+          setPartnerStatus(
+            challengeData.challengerJoined ? "joined" : "waiting"
+          );
         }
 
         // Join socket room with the correct gameId.
@@ -178,7 +258,7 @@ export default function PendingRoomScreen() {
   const createMissedChallengeLog = async () => {
     // Prevent duplicate logs.
     if (missedLogCreated.current) return;
-    
+
     // Re-read the latest challenge data from Firestore.
     const challengeRef = doc(database, "challenges", challengeId);
     const docSnap = await getDoc(challengeRef);
@@ -187,9 +267,16 @@ export default function PendingRoomScreen() {
 
     // Only proceed if the challenge exists, its status is 'cancelled',
     // and the challenged user never joined.
-    if (!(latestChallenge && latestChallenge.status === "cancelled" && !latestChallenge.challengedJoined)) return;
+    if (
+      !(
+        latestChallenge &&
+        latestChallenge.status === "cancelled" &&
+        !latestChallenge.challengedJoined
+      )
+    )
+      return;
     missedLogCreated.current = true;
-    
+
     let initiatorId, friendId, friendName, friendAvatar;
     if (currentUser.uid === challenge.challengerId) {
       // Current user is the challenger — log the missed challenge for the challenged friend.
@@ -206,15 +293,15 @@ export default function PendingRoomScreen() {
       initiatorId = challenge.challengedId; // equals currentUser.uid
       friendId = challenge.challengerId;
       friendName =
-        (challengedFriend && challengedFriend.username)
+        challengedFriend && challengedFriend.username
           ? challengedFriend.username
           : "Challenger";
       friendAvatar =
-        (challengedFriend && challengedFriend.avatarUrl)
+        challengedFriend && challengedFriend.avatarUrl
           ? challengedFriend.avatarUrl
           : "https://api.dicebear.com/9.x/avataaars/png?seed=default";
     }
-    
+
     try {
       const missedChallengesRef = collection(database, "missedChallenges");
       await addDoc(missedChallengesRef, {
@@ -234,8 +321,10 @@ export default function PendingRoomScreen() {
     try {
       // Only proceed with cancellation if the challenge is still pending.
       if (challenge && challenge.status === "pending") {
-        await updateDoc(doc(database, "challenges", challengeId), { status: "cancelled" });
-  
+        await updateDoc(doc(database, "challenges", challengeId), {
+          status: "cancelled",
+        });
+
         // Since the challenge is now cancelled, trigger missed challenge log creation.
         await createMissedChallengeLog();
       }
@@ -266,10 +355,10 @@ export default function PendingRoomScreen() {
     try {
       // Get the challenge reference.
       const challengeRef = doc(database, "challenges", challengeId);
-      
+
       // Update the challenge document with active status, joined flags, a gameStarted indicator,
       // and record the official game start time.
-      await updateDoc(challengeRef, { 
+      await updateDoc(challengeRef, {
         status: "active",
         acceptedAt: serverTimestamp(),
         challengerJoined: true,
@@ -277,16 +366,19 @@ export default function PendingRoomScreen() {
         gameStarted: true,
         startedAt: serverTimestamp(),
       });
-      
+
       // Set the local flag so that further cancellation logic is ignored.
       setGameInitiated(true);
-      
+
       // Store the challenge as the active one for rejoining later
-      await AsyncStorage.setItem("activeChallenge", JSON.stringify({
-        challengeId,
-        gameId: challenge.gameId
-      }));
-  
+      await AsyncStorage.setItem(
+        "activeChallenge",
+        JSON.stringify({
+          challengeId,
+          gameId: challenge.gameId,
+        })
+      );
+
       // Navigate to the gameplay screen
       navigation.replace("GamePlay", {
         gameType: "multiplayer",
@@ -301,89 +393,136 @@ export default function PendingRoomScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Challenge Sent</Text>
-      <Text style={styles.info}>
-        {partnerStatus === "joined"
-          ? "Both players have joined your challenge!"
-          : partnerStatus === "left"
-          ? `${challengedFriend.username} has left the challenge room. Waiting for them to rejoin...`
-          : `Waiting for ${challengedFriend.username} to join your challenge...`}
-      </Text>
+    <LinearGradient colors={["#b1d88a", "#87c66b"]} style={styles.container}>
+      <View style={styles.contentContainer}>
+        {/* <View style={styles.titlePill}>
+          <MaterialIcons name="sports-esports" size={24} color="#fff" />
+          <Text style={styles.titleText}>Challenge</Text>
+        </View> */}
 
-      {partnerStatus === "joined" ? (
-        <>
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={startGame}
-          >
-            <Text style={styles.buttonText}>Start Game</Text>
+        <View style={styles.card}>
+          <Text style={styles.header}>
+            {partnerStatus === "joined" ? "Ready to Play!" : "Challenge Sent"}
+          </Text>
+
+          <Text style={styles.info}>
+            {partnerStatus === "joined" ? (
+              "Opponent has joined"
+            ) : partnerStatus === "left" ? (
+              <>
+                <Text style={{ fontWeight: "bold" }}>
+                  {challengedFriend.username}
+                </Text>{" "}
+                has left the challenge room. Waiting for them to rejoin...
+              </>
+            ) : (
+              <>
+                Waiting for{" "}
+                <Text style={{ fontWeight: "bold" }}>
+                  {challengedFriend.username}
+                </Text>{" "}
+                to join your challenge...
+              </>
+            )}
+          </Text>
+
+          {partnerStatus === "joined" ? (
+            <Animated.View style={startButtonAnimatedStyle}>
+              <TouchableOpacity style={styles.startButton} onPress={startGame}>
+                <MaterialIcons name="play-arrow" size={24} color="#fff" />
+                <Text style={styles.buttonText}>Start Game</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <Animated.View
+              style={[styles.waitingContainer, waitingAnimatedStyle]}
+            >
+              <Animated.View style={iconAnimatedStyle}>
+                <MaterialIcons name="hourglass-top" size={40} color="#ffc166" />
+              </Animated.View>
+              <Text style={styles.waitText}>Waiting for friend to join...</Text>
+            </Animated.View>
+          )}
+
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <MaterialIcons name="close" size={18} color="#fff" />
+            <Text style={styles.cancelText}>Cancel Challenge</Text>
           </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <ActivityIndicator size="large" color="#49b3f5" />
-          <Text style={styles.waitText}>Waiting for friend to join...</Text>
-        </>
-      )}
-
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={handleCancel}
-      >
-        <Text style={styles.cancelText}>Cancel Challenge</Text>
-      </TouchableOpacity>
-    </View>
+        </View>
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  contentContainer: {
+    flex: 1,
     padding: 20,
     justifyContent: "center",
     alignItems: "center",
+    paddingTop: 80,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 30,
+    padding: 30,
+    width: "75%",
+    alignItems: "center",
   },
   header: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 2,
+    color: "#4f7a3a",
   },
   info: {
-    fontSize: 18,
+    fontSize: 14,
     textAlign: "center",
     marginBottom: 30,
+    color: "#555",
+    lineHeight: 24,
+  },
+  waitingContainer: {
+    alignItems: "center",
+    marginVertical: 20,
   },
   waitText: {
     fontSize: 16,
-    marginTop: 10,
-  },
-  joinedText: {
-    fontSize: 18,
-    color: "green",
-    marginBottom: 20,
+    marginTop: 15,
+    color: "#ffc166",
+    fontWeight: "500",
   },
   startButton: {
-    backgroundColor: "#49b3f5",
-    paddingVertical: 12,
+    backgroundColor: "#ffc268",
+    paddingVertical: 14,
     paddingHorizontal: 30,
     borderRadius: 25,
-    marginBottom: 20,
+    marginVertical:10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 26,
+    fontWeight: "bold",
+    marginLeft: 8,
   },
   cancelButton: {
-    marginTop: 30,
-    padding: 10,
-    backgroundColor: "red",
-    borderRadius: 5,
-    alignSelf: "center",
+    padding: 14,
+    marginTop: 10,
+    backgroundColor: "#ff6b6b",
+    borderRadius: 25,
+    flexDirection: "row",
+    alignItems: "center",
   },
   cancelText: {
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+    marginLeft: 5,
   },
 });

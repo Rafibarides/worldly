@@ -316,13 +316,13 @@ export default function GameScreen() {
             <View style={styles.settingCard}>
               <MaterialIcons name="timer" size={20} color="#fff" />
               <Text style={styles.settingCardText}>
-                Time Limit: {mockGameSettings.timeLimit / 60} min
+                Time Limit: 15 min
               </Text>
             </View>
             <View style={styles.settingCard}>
               <MaterialIcons name="emoji-events" size={20} color="#fff" />
               <Text style={styles.settingCardText}>
-                Points: {mockGameSettings.pointsPerCorrectGuess}
+                Points per Country: 1
               </Text>
             </View>
           </View>
@@ -462,11 +462,11 @@ const styles = StyleSheet.create({
   },
   settingCardsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     width: "100%",
+    justifyContent: "space-around",
   },
   settingCard: {
-    backgroundColor: "#87c66b",
+    backgroundColor: "#8fce75",
     borderRadius: 10,
     padding: 10,
     height: 100,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   acceptButton: {
-    backgroundColor: "#49b3f5",
+    backgroundColor: "#ffc268",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 5,
