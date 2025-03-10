@@ -4,8 +4,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
 import AuthStackNavigator from './navigation/AuthStackNavigator';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { AudioProvider } from './contexts/AudioContext';
 
 // Routes component which checks if there's a logged-in user
 function Routes() {
@@ -91,6 +92,52 @@ const toastConfig = {
       </TouchableOpacity>
     );
   },
+  // Custom friend request toast
+  friendRequest: ({ text1, text2, props, onPress }) => {
+    // Extract the avatarUrl from props
+    const { avatarUrl, friendshipId, requesterId } = props || {};
+    const [imageLoaded, setImageLoaded] = React.useState(false);
+    const [isPressed, setIsPressed] = React.useState(false);
+    
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => {
+          setIsPressed(true);
+          if (onPress) onPress();
+        }}
+        style={[
+          styles.challengeToast, 
+          isPressed && styles.challengeToastPressed
+        ]}
+      >
+        <View style={styles.avatarContainer}>
+          {!imageLoaded && (
+            <ActivityIndicator 
+              size="small" 
+              color="#fdc15f" 
+              style={styles.loadingAvatar} 
+            />
+          )}
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={styles.challengeAvatar}
+              onLoad={() => setImageLoaded(true)}
+            />
+          ) : (
+            <View style={styles.defaultAvatar}>
+              <Text style={styles.defaultAvatarText}>?</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.challengeTextContainer}>
+          <Text style={styles.challengeText1}>{text1}</Text>
+          <Text style={styles.challengeText2}>{text2}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  },
 };
 
 const styles = StyleSheet.create({
@@ -169,8 +216,10 @@ const styles = StyleSheet.create({
 export default function App({ navigation }) {
   return (
     <AuthProvider navigation={navigation}>
-      <Routes />
-      <Toast config={toastConfig} />
+      <AudioProvider>
+        <Routes />
+        <Toast config={toastConfig} />
+      </AudioProvider>
     </AuthProvider>
   );
 }

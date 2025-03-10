@@ -31,6 +31,8 @@ import { database } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import socket from "../../services/socket";
 import { geoPath, geoNaturalEarth1 } from "d3-geo";
+import { Audio } from 'expo-av';
+import { useAudio } from '../../contexts/AudioContext';
 
 let geoJSON;
 if (worldData.type === "Topology") {
@@ -76,7 +78,7 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 // Updated game duration in seconds: 30 seconds per game
-const GAME_DURATION = 30;
+const GAME_DURATION = 300;
 
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, challengeId, gameId } = route.params;
@@ -122,6 +124,8 @@ export default function GamePlayScreen({ route, navigation }) {
   const inputShake = useSharedValue(0);
   const toastOpacity = useSharedValue(0);
   const toastTranslate = useSharedValue(0);
+
+  const { musicEnabled } = useAudio();
 
   useEffect(() => {
     if (gameType === "multiplayer") {
@@ -540,19 +544,47 @@ export default function GamePlayScreen({ route, navigation }) {
   }, [containerHeight, mapWidth]);
 
   const handleExitGame = () => {
+    // Immediately stop the background music
+    if (backgroundMusicRef.current) {
+      try {
+        // Use stopAsync and unloadAsync immediately without waiting for the async operation
+        backgroundMusicRef.current.stopAsync();
+        backgroundMusicRef.current.unloadAsync();
+        backgroundMusicRef.current = null;
+        setBackgroundMusic(null);
+      } catch (error) {
+        console.error("Error stopping background music:", error);
+      }
+    }
+    
+    // Show confirmation dialog
     Alert.alert(
       "Exit Game",
-      "Are you sure you want to exit? ",
+      "Are you sure you want to exit? Your progress will be lost.",
       [
-        { text: "Cancel", style: "cancel" },
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => {
+            // If user cancels, restart the music if it was enabled
+            if (musicEnabled) {
+              playBackgroundMusic();
+            }
+          }
+        },
         {
           text: "Exit",
           style: "destructive",
-          onPress: () => navigation.reset({
-            index: 0,
-            routes: [{ name: 'Game' }],
-          }),
-        },
+          onPress: () => {
+            // For multiplayer games, notify the server that the player has left
+            if (gameType === "multiplayer" && gameId) {
+              socket.emit("leaveGame", { gameId, userId: currentUser.uid });
+            }
+            
+            // Navigate back to the main game screen
+            navigation.goBack();
+          }
+        }
       ]
     );
   };
@@ -610,6 +642,53 @@ export default function GamePlayScreen({ route, navigation }) {
       }
     }
   }, [score, gameData, gameType, gameIsOver, currentUser, challengeId, navigation, recognizedCountries, guessedCountriesRef, gameId]);
+
+  // Add this state and ref for the background music
+  const [backgroundMusic, setBackgroundMusic] = useState(null);
+  const backgroundMusicRef = useRef(null);
+
+  // Update the playBackgroundMusic function to check the preference
+  const playBackgroundMusic = async () => {
+    // Don't play music if the user has disabled it
+    if (!musicEnabled) return;
+    
+    try {
+      // Unload any existing sound first
+      if (backgroundMusicRef.current) {
+        await backgroundMusicRef.current.unloadAsync();
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/sound/music.mp3'),
+        { 
+          isLooping: true,
+          shouldPlay: true,
+          volume: 0.5 // Adjust volume as needed
+        }
+      );
+      
+      backgroundMusicRef.current = sound;
+      setBackgroundMusic(sound);
+    } catch (error) {
+      console.error("Error playing background music:", error);
+    }
+  };
+
+  // Add this effect to respond to changes in the music preference
+  useEffect(() => {
+    if (musicEnabled) {
+      playBackgroundMusic();
+    } else {
+      stopBackgroundMusic();
+    }
+  }, [musicEnabled]);
+
+  // Add this effect to stop the music when the game ends
+  useEffect(() => {
+    if (timeLeft === 0) {
+      stopBackgroundMusic();
+    }
+  }, [timeLeft]);
 
   return (
     <KeyboardAvoidingView

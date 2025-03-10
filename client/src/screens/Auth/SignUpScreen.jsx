@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, database } from '../../services/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  withDelay,
+  withSpring,
+} from "react-native-reanimated";
 
 export default function SignUpScreen({ navigation }) {
   const { setCurrentUser } = useAuth();
@@ -17,6 +25,117 @@ export default function SignUpScreen({ navigation }) {
   // NEW: Track whether username is available
   const [usernameAvailable, setUsernameAvailable] = useState(false);
   const [availabilityMessage, setAvailabilityMessage] = useState('');
+
+  // Animation values
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.5);
+  const usernameOpacity = useSharedValue(0);
+  const usernameTranslateY = useSharedValue(20);
+  const emailOpacity = useSharedValue(0);
+  const emailTranslateY = useSharedValue(20);
+  const passwordOpacity = useSharedValue(0);
+  const passwordTranslateY = useSharedValue(20);
+  const confirmPasswordOpacity = useSharedValue(0);
+  const confirmPasswordTranslateY = useSharedValue(20);
+  const buttonOpacity = useSharedValue(0);
+  const buttonTranslateY = useSharedValue(20);
+  const linkOpacity = useSharedValue(0);
+  const availabilityOpacity = useSharedValue(0);
+
+  // Start animations when component mounts
+  useEffect(() => {
+    // Logo animation
+    logoOpacity.value = withTiming(1, { duration: 800 });
+    logoScale.value = withSequence(
+      withTiming(1.2, { duration: 600 }),
+      withTiming(1, { duration: 400 })
+    );
+
+    // Staggered animations for form elements
+    usernameOpacity.value = withDelay(300, withTiming(1, { duration: 500 }));
+    usernameTranslateY.value = withDelay(300, withSpring(0));
+    
+    emailOpacity.value = withDelay(450, withTiming(1, { duration: 500 }));
+    emailTranslateY.value = withDelay(450, withSpring(0));
+    
+    passwordOpacity.value = withDelay(600, withTiming(1, { duration: 500 }));
+    passwordTranslateY.value = withDelay(600, withSpring(0));
+    
+    confirmPasswordOpacity.value = withDelay(750, withTiming(1, { duration: 500 }));
+    confirmPasswordTranslateY.value = withDelay(750, withSpring(0));
+    
+    buttonOpacity.value = withDelay(900, withTiming(1, { duration: 500 }));
+    buttonTranslateY.value = withDelay(900, withSpring(0));
+    
+    linkOpacity.value = withDelay(1050, withTiming(1, { duration: 500 }));
+  }, []);
+
+  // Update availability message animation when it changes
+  useEffect(() => {
+    if (availabilityMessage) {
+      availabilityOpacity.value = withTiming(1, { duration: 300 });
+    } else {
+      availabilityOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [availabilityMessage]);
+
+  // Animated styles
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: logoOpacity.value,
+      transform: [{ scale: logoScale.value }],
+    };
+  });
+
+  const usernameAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: usernameOpacity.value,
+      transform: [{ translateY: usernameTranslateY.value }],
+    };
+  });
+
+  const emailAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: emailOpacity.value,
+      transform: [{ translateY: emailTranslateY.value }],
+    };
+  });
+
+  const passwordAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: passwordOpacity.value,
+      transform: [{ translateY: passwordTranslateY.value }],
+    };
+  });
+
+  const confirmPasswordAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: confirmPasswordOpacity.value,
+      transform: [{ translateY: confirmPasswordTranslateY.value }],
+    };
+  });
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ translateY: buttonTranslateY.value }],
+    };
+  });
+
+  const linkAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: linkOpacity.value,
+    };
+  });
+
+  const availabilityAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: availabilityOpacity.value,
+    };
+  });
+
+  // Create animated components
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   // NEW: Check username availability on each text change
   const checkUsernameAvailability = async (rawName) => {
@@ -108,59 +227,81 @@ export default function SignUpScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Image 
+      <Animated.Image 
         source={require('../../../assets/images/sign-up.png')}
-        style={styles.avatar}
+        style={[styles.avatar, logoAnimatedStyle]}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        placeholderTextColor="#fff"
-        value={username}
-        onChangeText={checkUsernameAvailability}
-        autoCapitalize="none"
-      />
+      
+      <Animated.View style={[usernameAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          placeholderTextColor="#fff"
+          value={username}
+          onChangeText={checkUsernameAvailability}
+          autoCapitalize="none"
+        />
+      </Animated.View>
+      
       {!!availabilityMessage && (
-        <Text style={{ color: usernameAvailable ? 'green' : 'red' }}>
+        <Animated.Text 
+          style={[
+            { color: usernameAvailable ? 'green' : 'red' },
+            availabilityAnimatedStyle
+          ]}
+        >
           {availabilityMessage}
-        </Text>
+        </Animated.Text>
       )}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#fff"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#fff"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        placeholderTextColor="#fff"
-        secureTextEntry
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-      />
-      <TouchableOpacity
+      
+      <Animated.View style={[emailAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#fff"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
+      </Animated.View>
+      
+      <Animated.View style={[passwordAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#fff"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+      </Animated.View>
+      
+      <Animated.View style={[confirmPasswordAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          placeholderTextColor="#fff"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
+      </Animated.View>
+      
+      <AnimatedTouchableOpacity
         onPress={handleSignup}
-        style={styles.button}
+        style={[styles.button, buttonAnimatedStyle]}
         disabled={loading || !usernameAvailable}
       >
         <Text style={styles.buttonText}>
           {!loading ? 'Sign Up' : 'Loading...'}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-        <Text style={styles.linkText}>Already have an account? Sign In</Text>
-      </TouchableOpacity>
+      </AnimatedTouchableOpacity>
+      
+      <Animated.View style={linkAnimatedStyle}>
+        <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+          <Text style={styles.linkText}>Already have an account? Sign In</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -183,8 +324,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#fff',
   },
-  input: {
+  inputContainer: {
     width: '80%',
+  },
+  input: {
+    width: '100%',
     borderWidth: 0,
     borderColor: '#ccc',
     borderRadius: 10,

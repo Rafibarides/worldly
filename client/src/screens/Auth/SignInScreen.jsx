@@ -1,16 +1,96 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, database } from '../../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  withDelay,
+  withSpring,
+} from "react-native-reanimated";
 
 export default function SignInScreen({ navigation }) {
   const { setCurrentUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Animation values
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.5);
+  const emailOpacity = useSharedValue(0);
+  const emailTranslateY = useSharedValue(20);
+  const passwordOpacity = useSharedValue(0);
+  const passwordTranslateY = useSharedValue(20);
+  const buttonOpacity = useSharedValue(0);
+  const buttonTranslateY = useSharedValue(20);
+  const linkOpacity = useSharedValue(0);
+
+  // Start animations when component mounts
+  useEffect(() => {
+    // Logo animation
+    logoOpacity.value = withTiming(1, { duration: 800 });
+    logoScale.value = withSequence(
+      withTiming(1.2, { duration: 600 }),
+      withTiming(1, { duration: 400 })
+    );
+
+    // Staggered animations for form elements
+    emailOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
+    emailTranslateY.value = withDelay(400, withSpring(0));
+    
+    passwordOpacity.value = withDelay(600, withTiming(1, { duration: 500 }));
+    passwordTranslateY.value = withDelay(600, withSpring(0));
+    
+    buttonOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
+    buttonTranslateY.value = withDelay(800, withSpring(0));
+    
+    linkOpacity.value = withDelay(1000, withTiming(1, { duration: 500 }));
+  }, []);
+
+  // Animated styles
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: logoOpacity.value,
+      transform: [{ scale: logoScale.value }],
+    };
+  });
+
+  const emailAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: emailOpacity.value,
+      transform: [{ translateY: emailTranslateY.value }],
+    };
+  });
+
+  const passwordAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: passwordOpacity.value,
+      transform: [{ translateY: passwordTranslateY.value }],
+    };
+  });
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: buttonOpacity.value,
+      transform: [{ translateY: buttonTranslateY.value }],
+    };
+  });
+
+  const linkAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: linkOpacity.value,
+    };
+  });
+
+  // Create animated components
+  const AnimatedView = Animated.createAnimatedComponent(View);
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -43,32 +123,46 @@ export default function SignInScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Image 
+      <Animated.Image 
         source={require('../../../assets/images/sign-in.png')} 
-        style={styles.avatar} 
+        style={[styles.avatar, logoAnimatedStyle]} 
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#fff"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#fff"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <TouchableOpacity onPress={() => handleLogin()} style={styles.button} disabled={loading}>
+      
+      <Animated.View style={[emailAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#fff"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+        />
+      </Animated.View>
+      
+      <Animated.View style={[passwordAnimatedStyle, styles.inputContainer]}>
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#fff"
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+      </Animated.View>
+      
+      <AnimatedTouchableOpacity 
+        onPress={handleLogin} 
+        style={[styles.button, buttonAnimatedStyle]} 
+        disabled={loading}
+      >
         <Text style={styles.buttonText}>{!loading ? 'Login' : 'Loading..'}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-        <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
-      </TouchableOpacity>
+      </AnimatedTouchableOpacity>
+      
+      <Animated.View style={linkAnimatedStyle}>
+        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+          <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -91,8 +185,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#fff',
   },
-  input: {
+  inputContainer: {
     width: '80%',
+  },
+  input: {
+    width: '100%',
     borderWidth: 0,
     borderColor: '#ccc',
     borderRadius: 10,

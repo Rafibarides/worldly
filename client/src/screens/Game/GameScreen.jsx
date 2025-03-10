@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ import { database } from "../../services/firebase";
 import { useNavigation } from "@react-navigation/native";
 import RejoinChallengeButton from '../../components/RejoinChallengeButton';
 import Toast from 'react-native-toast-message';
+import { Audio } from 'expo-av';
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -177,6 +178,11 @@ export default function GameScreen() {
             // Only show notifications for challenges we haven't notified about yet
             .filter(challenge => !notifiedChallenges.has(challenge.id));
             
+          // Play sound if there are new challenges
+          if (newChallenges.length > 0) {
+            playChallengeSound();
+          }
+          
           // Show toast for each new challenge
           for (const newChallenge of newChallenges) {
             // Add to our set of notified challenges
@@ -335,6 +341,125 @@ export default function GameScreen() {
     });
   };
 
+  // Add this function inside the component before the useEffect that handles challenge requests
+  const playChallengeSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/sound/chalReq.mp3')
+      );
+      await sound.playAsync();
+      
+      // Unload sound when finished playing
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error("Error playing challenge sound:", error);
+    }
+  };
+
+  // Update the playFriendRequestSound function to use the friendReq.mp3 file
+  const playFriendRequestSound = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/sound/friendReq.mp3') // Using the friend request sound file
+      );
+      await sound.playAsync();
+      
+      // Unload sound when finished playing
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error("Error playing friend request sound:", error);
+    }
+  };
+
+  // Add this useEffect to listen for friend requests
+  useEffect(() => {
+    if (currentUser) {
+      // Keep track of friend requests we've already shown notifications for
+      const notifiedFriendRequests = new Set();
+      
+      // Query for friendships where the current user is the requestee (recipient) and status is pending
+      const qFriendRequests = query(
+        collection(database, "friendships"),
+        where("requesteeId", "==", currentUser.uid),
+        where("status", "==", "pending")
+      );
+      
+      const unsubscribeFriendRequests = onSnapshot(qFriendRequests, (snapshot) => {
+        (async () => {
+          // Check for new friend requests to show toast notifications
+          const newFriendRequests = snapshot.docChanges()
+            .filter(change => change.type === 'added')
+            .map(change => ({
+              id: change.doc.id,
+              ...change.doc.data()
+            }))
+            // Only show notifications for requests we haven't notified about yet
+            .filter(request => !notifiedFriendRequests.has(request.id));
+            
+          // Play sound if there are new friend requests
+          if (newFriendRequests.length > 0) {
+            playFriendRequestSound();
+          }
+          
+          // Show toast for each new friend request
+          for (const newRequest of newFriendRequests) {
+            // Add to our set of notified friend requests
+            notifiedFriendRequests.add(newRequest.id);
+            
+            // Get requester details
+            const requesterId = newRequest.requesterId;
+            const requesterRef = doc(database, "users", requesterId);
+            const requesterSnap = await getDoc(requesterRef);
+            const requesterData = requesterSnap.exists()
+              ? requesterSnap.data()
+              : { username: "Unknown" };
+              
+            // Preload the avatar image before showing the toast
+            const avatarUrl = requesterData.avatarUrl || null;
+            
+            // Use a small delay to ensure UI is responsive
+            setTimeout(async () => {
+              // Preload the image
+              await preloadImage(avatarUrl);
+              
+              // Now show the toast with the preloaded image
+              Toast.show({
+                type: 'friendRequest',
+                text1: 'New Friend Request!',
+                text2: `${requesterData.username} wants to be your friend`,
+                position: 'top',
+                visibilityTime: 4000,
+                autoHide: true,
+                topOffset: 60,
+                props: {
+                  avatarUrl: avatarUrl,
+                  friendshipId: newRequest.id,
+                  requesterId: requesterId
+                },
+                onPress: () => {
+                  // Navigate to the Friends screen to see the request
+                  navigation.navigate('Friends');
+                }
+              });
+            }, 300); // Small delay to ensure UI responsiveness
+          }
+        })();
+      });
+      
+      return () => {
+        unsubscribeFriendRequests();
+      };
+    }
+  }, [currentUser, navigation]);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -407,7 +532,7 @@ export default function GameScreen() {
             <View style={styles.settingCard}>
               <MaterialIcons name="timer" size={20} color="#fff" />
               <Text style={styles.settingCardText}>
-                Time Limit: 15 min
+                Time Limit: 11 min
               </Text>
             </View>
             <View style={styles.settingCard}>

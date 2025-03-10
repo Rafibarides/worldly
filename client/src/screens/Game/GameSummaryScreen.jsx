@@ -125,26 +125,38 @@ export default function GameSummaryScreen() {
   // Add state for friendship statuses
   const [friendshipStatuses, setFriendshipStatuses] = useState({});
 
-  // NEW: When the summary screen mounts, update the user document for each continent at 100%
+  // Add this ref at the component level, outside any hooks
+  const hasProcessedContinents = useRef(false);
+
+  // Then in the useEffect:
   useEffect(() => {
     if (!currentUser) return;
+    
     const updateContinentsTracked = async () => {
+      // Only run once per component mount
+      if (hasProcessedContinents.current) return;
+      hasProcessedContinents.current = true;
+      
+      const updates = {};
       for (const continent of Object.keys(continentPercentages)) {
         if (continentPercentages[continent] === 100) {
-          try {
-            await updateDoc(doc(database, 'users', currentUser.uid), {
-              // Using Firestore dot notation to update the specific continent count
-              [`continentsTracked.${continent}`]: increment(1)
-            });
-            console.log(`Incremented ${continent} count for user ${currentUser.uid}`);
-          } catch (error) {
-            console.error(`Error updating ${continent}:`, error);
-          }
+          // Collect all updates in a single object
+          updates[`continentsTracked.${continent}`] = increment(1);
+        }
+      }
+      
+      // Only make a single Firestore call with all updates
+      if (Object.keys(updates).length > 0) {
+        try {
+          await updateDoc(doc(database, 'users', currentUser.uid), updates);
+        } catch (error) {
+          console.error(`Error updating continents:`, error);
         }
       }
     };
+    
     updateContinentsTracked();
-  }, [currentUser]);
+  }, [currentUser, continentPercentages]); // Include necessary dependencies
 
   // NEW: Leveling system update.
   // This hook checks the user's gamesPlayed and recalculates their level.

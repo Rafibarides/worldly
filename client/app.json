@@ -37,7 +37,11 @@
       "FIREBASE_STORAGE_BUCKET": "wordly-app-b86b5.firebasestorage.app",
       "FIREBASE_MESSAGING_SENDER_ID": "481611040058",
       "FIREBASE_APP_ID": "1:481611040058:web:8bbb367c5cdcdc3a867c03",
-      "FIREBASE_MEASUREMENT_ID": "G-52FNWMTV0Q"
-    }
+      "FIREBASE_MEASUREMENT_ID": "G-52FNWMTV0Q",
+      "eas": {
+        "projectId": "01481ddc-e38d-4369-8cd4-75f616aa35ac"
+      }
+    },
+    "owner": "rafi_barides"
   }
 }
