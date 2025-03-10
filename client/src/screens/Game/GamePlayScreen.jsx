@@ -203,6 +203,18 @@ export default function GamePlayScreen({ route, navigation }) {
   // Add this separate effect to handle navigation when timeLeft reaches 0
   useEffect(() => {
     if (timeLeft === 0 && !hasNavigated) {  // Only navigate if not already done
+      // Stop background music immediately when game is over
+      if (backgroundMusicRef.current) {
+        try {
+          backgroundMusicRef.current.stopAsync();
+          backgroundMusicRef.current.unloadAsync();
+          backgroundMusicRef.current = null;
+          setBackgroundMusic(null);
+        } catch (error) {
+          console.error("Error stopping background music:", error);
+        }
+      }
+      
       setHasNavigated(true); // Prevent further navigations
       if (gameType === "solo") {
         // Navigate to the GameSummary screen with the final results.
@@ -689,6 +701,37 @@ export default function GamePlayScreen({ route, navigation }) {
       stopBackgroundMusic();
     }
   }, [timeLeft]);
+
+  // Add the stopBackgroundMusic function that's missing
+  const stopBackgroundMusic = async () => {
+    if (backgroundMusicRef.current) {
+      try {
+        await backgroundMusicRef.current.stopAsync();
+        await backgroundMusicRef.current.unloadAsync();
+        backgroundMusicRef.current = null;
+        setBackgroundMusic(null);
+      } catch (error) {
+        console.error("Error stopping background music:", error);
+      }
+    }
+  };
+
+  // Add this effect to stop music when navigating to GameSummary
+  useEffect(() => {
+    // Clean up function to stop music when component unmounts
+    return () => {
+      if (backgroundMusicRef.current) {
+        try {
+          backgroundMusicRef.current.stopAsync();
+          backgroundMusicRef.current.unloadAsync();
+          backgroundMusicRef.current = null;
+          setBackgroundMusic(null);
+        } catch (error) {
+          console.error("Error stopping background music on unmount:", error);
+        }
+      }
+    };
+  }, []);
 
   return (
     <KeyboardAvoidingView

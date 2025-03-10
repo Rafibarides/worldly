@@ -520,9 +520,9 @@ export default function GameScreen() {
           </AnimatedTouchableOpacity>
         </View>
 
-        {/* NEW: Container for the Rejoin Challenge Button */}
+        {/* Rejoin Game Button Container */}
         <View style={styles.rejoinButtonContainer}>
-          <RejoinChallengeButton currentUser={currentUser} />
+          <RejoinChallengeButton />
         </View>
 
         {/* Settings info */}

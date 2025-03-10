@@ -1,70 +1,117 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, Text, Alert } from 'react-native';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { database } from '../services/firebase';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat } from 'react-native-reanimated';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  withSequence,
+  Easing
+} from 'react-native-reanimated';
 
-// This component assumes you have access to the current user (for example, via context)
-export default function RejoinChallengeButton({ currentUser }) {
+export default function RejoinChallengeButton() {
   const navigation = useNavigation();
-
-  // NEW: Create an animated version of TouchableOpacity
-  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
-
-  // NEW: State to track whether an active challenge exists for the current user.
+  const { currentUser } = useAuth();
   const [hasActiveChallenge, setHasActiveChallenge] = useState(false);
-
-  // NEW: Shared value to control the "breathing" animation
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Animation values
+  const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
-
-  // NEW: Start the repeated animation (oscillating scale from 1 to 1.05) on mount.
+  
+  // Set up the animations
   useEffect(() => {
-    scale.value = withRepeat(withTiming(1.05, { duration: 1500 }), -1, true);
-  }, [scale]);
-
-  // NEW: Animated style for the breathing effect.
-  // Opacity interpolates so that when scale=1 it is 0.8 and when scale=1.05 it is 1.0.
+    if (hasActiveChallenge) {
+      // Subtle opacity pulsing
+      opacity.value = withRepeat(
+        withSequence(
+          withTiming(0.7, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1, // Infinite repeat
+        true // Reverse
+      );
+      
+      // Subtle scale pulsing
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.05, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1, // Infinite repeat
+        true // Reverse
+      );
+    }
+  }, [hasActiveChallenge]);
+  
+  // Create animated styles
   const animatedStyle = useAnimatedStyle(() => {
-    const opacity = ((scale.value - 1) / 0.05) * 0.2 + 0.8;
     return {
-      transform: [{ scale: scale.value }],
-      opacity: opacity,
+      opacity: opacity.value,
+      transform: [{ scale: scale.value }]
     };
   });
 
-  // NEW: Check for any active challenges where the user is either the challenger or challenged.
+  // Check for active challenges when the component mounts
   useEffect(() => {
-    if (!currentUser) return;
+    const checkForActiveChallenge = async () => {
+      if (!currentUser) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const challengesRef = collection(database, 'challenges');
+        
+        // Create two queries - one for challenges where the user is challenger, one where the user is challenged
+        const challengerQuery = query(
+          challengesRef,
+          where('challengerId', '==', currentUser.uid),
+          where('status', '==', 'active'),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        );
+        
+        const challengedQuery = query(
+          challengesRef,
+          where('challengedId', '==', currentUser.uid),
+          where('status', '==', 'active'),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        );
+        
+        const [challengerSnapshot, challengedSnapshot] = await Promise.all([
+          getDocs(challengerQuery),
+          getDocs(challengedQuery)
+        ]);
+        
+        // Check if either query returned results
+        const hasChallenge = !challengerSnapshot.empty || !challengedSnapshot.empty;
+        console.log("Active challenge found:", hasChallenge);
+        setHasActiveChallenge(hasChallenge);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error checking for active challenges:", error);
+        setIsLoading(false);
+      }
+    };
+
+    checkForActiveChallenge();
     
-    const challengesRef = collection(database, 'challenges');
-    const challengerQuery = query(
-      challengesRef,
-      where('challengerId', '==', currentUser.uid),
-      where('status', '==', 'active')
-    );
-    const challengedQuery = query(
-      challengesRef,
-      where('challengedId', '==', currentUser.uid),
-      where('status', '==', 'active')
-    );
+    // Set up a timer to periodically check for active challenges
+    const intervalId = setInterval(checkForActiveChallenge, 30000); // Check every 30 seconds
     
-    Promise.all([getDocs(challengerQuery), getDocs(challengedQuery)])
-      .then(([challengerSnapshot, challengedSnapshot]) => {
-        if (!challengerSnapshot.empty || !challengedSnapshot.empty) {
-          setHasActiveChallenge(true);
-        } else {
-          setHasActiveChallenge(false);
-        }
-      })
-      .catch((error) => {
-        console.error("Error checking active challenges:", error);
-        setHasActiveChallenge(false);
-      });
+    return () => clearInterval(intervalId);
   }, [currentUser]);
 
   const handleRejoinChallenge = async () => {
     try {
+      setIsLoading(true);
       console.log("🔍 Current User ID:", currentUser.uid);
 
       const challengesRef = collection(database, 'challenges');
@@ -101,6 +148,7 @@ export default function RejoinChallengeButton({ currentUser }) {
          const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
          return bTime - aTime;
       });
+      
       if (allChallenges.length > 0) {
         // Take the most recent active challenge.
         const mostRecentChallenge = allChallenges[0];
@@ -112,20 +160,46 @@ export default function RejoinChallengeButton({ currentUser }) {
         });
       } else {
         Alert.alert('No Active Challenges', 'You don\'t have any active challenges to rejoin.');
+        setHasActiveChallenge(false);
       }
     } catch (error) {
-      console.error('Error rejoining challenge:', error);
-      Alert.alert('Error', 'There was a problem trying to rejoin the challenge. Please try again.');
+      console.error("Error rejoining challenge:", error);
+      Alert.alert('Error', 'Failed to rejoin challenge. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Conditionally render the button only if an active challenge exists.
-  if (!hasActiveChallenge) return null;
+  // Only render the button if there's an active challenge
+  if (isLoading) {
+    return <ActivityIndicator size="small" color="#ffc268" />;
+  }
+  
+  if (!hasActiveChallenge) {
+    return null;
+  }
 
   return (
-    // Use the AnimatedTouchableOpacity with the added animatedStyle to create the breathing effect.
-    <AnimatedTouchableOpacity onPress={handleRejoinChallenge} style={[{ padding: 12, backgroundColor: '#7dbc63', borderRadius: 8 }, animatedStyle]}>
-      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Rejoin Game</Text>
-    </AnimatedTouchableOpacity>
+    <Animated.View style={animatedStyle}>
+      <TouchableOpacity style={styles.button} onPress={handleRejoinChallenge}>
+        <Text style={styles.buttonText}>Rejoin Active Game</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: '#ffc268',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    marginVertical: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+}); 
