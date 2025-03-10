@@ -33,6 +33,7 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
+import tipsData from "../../utils/tips.json";
 
 export default function PendingRoomScreen() {
   const navigation = useNavigation();
@@ -52,6 +53,9 @@ export default function PendingRoomScreen() {
   const startButtonScale = useSharedValue(1);
   const waitingOpacity = useSharedValue(1);
   const iconRotation = useSharedValue(0);
+
+  // Add state for the current tip
+  const [currentTip, setCurrentTip] = useState("");
 
   // Animation for the waiting indicator
   useEffect(() => {
@@ -98,6 +102,14 @@ export default function PendingRoomScreen() {
       transform: [{ rotate: `${iconRotation.value}deg` }],
     };
   });
+
+  // Select a random tip when component mounts
+  useEffect(() => {
+    if (tipsData && tipsData.tips && tipsData.tips.length > 0) {
+      const randomIndex = Math.floor(Math.random() * tipsData.tips.length);
+      setCurrentTip(tipsData.tips[randomIndex]);
+    }
+  }, []);
 
   useEffect(() => {
     // Listen to challenge document changes
@@ -440,7 +452,9 @@ export default function PendingRoomScreen() {
               <Animated.View style={iconAnimatedStyle}>
                 <MaterialIcons name="hourglass-top" size={40} color="#ffc166" />
               </Animated.View>
-              <Text style={styles.waitText}>Waiting for friend to join...</Text>
+              <Text style={styles.waitText}>
+                {currentTip || "Waiting for friend to join..."}
+              </Text>
             </Animated.View>
           )}
 
@@ -494,6 +508,9 @@ const styles = StyleSheet.create({
     marginTop: 15,
     color: "#ffc166",
     fontWeight: "500",
+    textAlign: "center",
+    paddingHorizontal: 10,
+    maxWidth: "100%",
   },
   startButton: {
     backgroundColor: "#ffc268",

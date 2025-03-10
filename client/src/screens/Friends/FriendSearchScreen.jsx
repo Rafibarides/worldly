@@ -25,6 +25,7 @@ export default function FriendSearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [prefetched, setPrefetched] = useState(false);
 
   useEffect(() => {
     fetchRecentUsers();
@@ -175,6 +176,18 @@ export default function FriendSearchScreen() {
     setRefreshing(false);
   };
 
+  useEffect(() => {
+    if (results.length > 0) {
+      Promise.all(
+        results.map(user =>
+          user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
+        )
+      ).then(() => {
+        setPrefetched(true);
+      });
+    }
+  }, [results]);
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -239,6 +252,15 @@ export default function FriendSearchScreen() {
             </View>
           );
         }}
+        initialNumToRender={Math.max(
+          searchTerm.trim() ? results.length : recentUsers.length,
+          1
+        )}
+        windowSize={Math.max(
+          searchTerm.trim() ? results.length : recentUsers.length,
+          1
+        )}
+        removeClippedSubviews={true}
       />
     </View>
   );

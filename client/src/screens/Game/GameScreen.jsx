@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { mockGameSettings } from "../../utils/mockData";
@@ -34,6 +35,7 @@ import {
 import { database } from "../../services/firebase";
 import { useNavigation } from "@react-navigation/native";
 import RejoinChallengeButton from '../../components/RejoinChallengeButton';
+import Toast from 'react-native-toast-message';
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -139,35 +141,105 @@ export default function GameScreen() {
   // NEW: State for challenge requests and toggle visibility.
   const [challengeRequests, setChallengeRequests] = useState([]);
   const [showChallengeRequests, setShowChallengeRequests] = useState(false);
+  const [highlightedChallengeId, setHighlightedChallengeId] = useState(null);
 
   // UPDATED: Fetch incoming challenge requests and also fetch challenger details
   useEffect(() => {
     if (currentUser) {
-      const challengesRef = collection(database, "challenges");
+      let challengedRequests = [];
+      let challengerRequests = [];
+      // Keep track of challenges we've already shown notifications for
+      const notifiedChallenges = new Set();
 
-      // Query for challenges where currentUser is challenged.
+      // Query for challenges where the current user is the challenged player
       const qChallenged = query(
-        challengesRef,
+        collection(database, "challenges"),
         where("challengedId", "==", currentUser.uid),
         where("status", "==", "pending")
       );
 
-      // Query for challenges where currentUser is the challenger.
+      // Query for challenges where the current user is the challenger
       const qChallenger = query(
-        challengesRef,
+        collection(database, "challenges"),
         where("challengerId", "==", currentUser.uid),
         where("status", "==", "pending")
       );
 
-      let challengedRequests = [];
-      let challengerRequests = [];
-
       const unsubscribeChallenged = onSnapshot(qChallenged, (snapshot) => {
         (async () => {
+          // Check for new challenges to show toast notifications
+          const newChallenges = snapshot.docChanges()
+            .filter(change => change.type === 'added')
+            .map(change => ({
+              id: change.doc.id,
+              ...change.doc.data()
+            }))
+            // Only show notifications for challenges we haven't notified about yet
+            .filter(challenge => !notifiedChallenges.has(challenge.id));
+            
+          // Show toast for each new challenge
+          for (const newChallenge of newChallenges) {
+            // Add to our set of notified challenges
+            notifiedChallenges.add(newChallenge.id);
+            
+            // Get challenger details
+            const challengerId = newChallenge.challengerId;
+            const challengerRef = doc(database, "users", challengerId);
+            const challengerSnap = await getDoc(challengerRef);
+            const challengerData = challengerSnap.exists()
+              ? challengerSnap.data()
+              : { username: "Unknown" };
+              
+            // Preload the avatar image before showing the toast
+            const avatarUrl = challengerData.avatarUrl || null;
+            
+            // Use a small delay to ensure UI is responsive
+            setTimeout(async () => {
+              // Preload the image
+              await preloadImage(avatarUrl);
+              
+              // Now show the toast with the preloaded image
+              Toast.show({
+                type: 'challenge',
+                text1: 'New Challenge Request!',
+                text2: `${challengerData.username} has challenged you to a game`,
+                position: 'top',
+                visibilityTime: 4000,
+                autoHide: true,
+                topOffset: 60,
+                props: {
+                  avatarUrl: avatarUrl,
+                  challengeId: newChallenge.id
+                },
+                onPress: () => {
+                  // Navigate to the Game screen first (this is safe even if we're already there)
+                  navigation.navigate('Game');
+                  
+                  // Set a small delay to ensure navigation completes before showing the panel
+                  setTimeout(() => {
+                    setShowChallengeRequests(true);
+                    
+                    // Find the challenge in the list and highlight it
+                    const challengeIndex = challengeRequests.findIndex(item => item.id === newChallenge.id);
+                    if (challengeIndex !== -1) {
+                      // You could add some state to highlight this item in the UI
+                      setHighlightedChallengeId(newChallenge.id);
+                      
+                      // Clear the highlight after a short delay
+                      setTimeout(() => {
+                        setHighlightedChallengeId(null);
+                      }, 2000);
+                    }
+                  }, 300);
+                }
+              });
+            }, 300); // Small delay to ensure UI responsiveness
+          }
+
           challengedRequests = await Promise.all(
             snapshot.docs.map(async (docSnap) => {
               const data = docSnap.data();
-              // For challenges where you are challenged, your opponent is the challenger.
+              // For challenges where you are the challenged player, your opponent is the challenger.
               const opponentId = data.challengerId;
               const opponentRef = doc(database, "users", opponentId);
               const opponentSnap = await getDoc(opponentRef);
@@ -242,6 +314,25 @@ export default function GameScreen() {
       console.error("Error rejoining challenge:", error);
       Alert.alert("Error", "Failed to rejoin challenge. Please try again.");
     }
+  };
+
+  // Inside your component, add this function to preload images
+  const preloadImage = (uri) => {
+    return new Promise((resolve, reject) => {
+      if (!uri) {
+        resolve(null);
+        return;
+      }
+      
+      Image.prefetch(uri)
+        .then(() => {
+          resolve(uri);
+        })
+        .catch((error) => {
+          console.warn("Error preloading image:", error);
+          resolve(null); // Resolve with null to continue the flow
+        });
+    });
   };
 
   if (isLoading) {

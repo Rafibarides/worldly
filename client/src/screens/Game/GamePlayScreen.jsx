@@ -745,9 +745,8 @@ const styles = StyleSheet.create({
   },
   exitButton: {
     position: "absolute",
-    top: 20,
-    left: 20,
-    padding: 10,
+    top: 44,
+    left: 25,
   },
   toastWrapper: {
     position: "absolute",
