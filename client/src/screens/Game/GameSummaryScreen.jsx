@@ -110,12 +110,26 @@ export default function GameSummaryScreen() {
 
     const guessedCount = guessedSet.size;
     const total = fixedContinentTotals[continent];
-    // Use Math.floor so that 2/12 results in about 16% (16.67 -> 16)
-    const percentage = Math.floor((guessedCount / total) * 100);
+
+    // Check if all countries are guessed (or very close due to floating point precision)
+    const rawPercentage = (guessedCount / total) * 100;
+    const percentage = guessedCount === total ? 100 : Math.floor(rawPercentage);
 
     // After we compute each continent's percentage, log out the computed result:
-    console.log(`[${continent}] guessedCount: ${guessedCount}, total: ${total}, rawPercentage: ${(guessedCount / total) * 100}`);
+    console.log(`[${continent}] guessedCount: ${guessedCount}, total: ${total}, rawPercentage: ${rawPercentage}, finalPercentage: ${percentage}`);
     continentPercentages[continent] = isNaN(percentage) ? 0 : percentage;
+
+    // Inside the forEach loop for continents, add this before calculating percentages:
+    console.log(`[${continent}] Normalized continent countries:`, continentCanonical);
+    console.log(`[${continent}] Normalized guessed countries:`, [...guessedCountries].map(g => normalizeCountryName(g)));
+
+    // After the guessedCountries.forEach loop, add this to see which countries weren't matched:
+    if (continent === "North America") {
+      const missingCountries = continentCanonical.filter(country => 
+        ![...guessedSet].some(guessed => guessed === country)
+      );
+      console.log(`[${continent}] Missing countries:`, missingCountries);
+    }
   });
 
   // NEW: Get current user and setCurrentUser from the Auth context

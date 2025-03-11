@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#7dbc63",
-    paddingTop: 10,
+    paddingTop: 60,
   },
   /* UPDATED headerRow: space-between layout for mirrored corners */
   headerRow: {
@@ -350,7 +350,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    marginTop: 8,
     marginBottom: 70,
   },
   settingsButton: {
@@ -379,10 +378,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 25,
     backgroundColor: "#75b35b",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 0.4 },
-    shadowOpacity: 0,
-    shadowRadius: 1.6,
     elevation: 1,
   },
   medalIconInPill: {
@@ -579,8 +574,6 @@ const styles = StyleSheet.create({
   },
   badgesSection: {
     padding: 20,
-  },
-  badgesContainer: {
-    paddingHorizontal: 10,
-  },
+  }
 });
+  
