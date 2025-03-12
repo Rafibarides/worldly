@@ -393,6 +393,12 @@ export const normalizeCountryName = (name) => {
   normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()']/g, '');
   normalized = normalized.replace(/\s+/g, '');
 
+  // Special case for Bosnia and Herzegovina - handle potential abbreviations in GeoJSON
+  if (normalized.includes("bosnia") || normalized.includes("herzegovina") || 
+      normalized.includes("herz")) {
+    return "bosniaandherzegovina";
+  }
+
   // Define aliases to map commonly used variants to a canonical name
   const aliases = {
     'us': 'unitedstatesofamerica',
@@ -434,6 +440,12 @@ export const normalizeCountryName = (name) => {
     'czechrepublic': 'czechrepublic',
     'czechia': 'czechrepublic',
     'czech': 'czechrepublic',
+    // --- Add these new entries to support Bosnia ---
+    'bosnia': 'bosniaandherzegovina',
+    'herzegovina': 'bosniaandherzegovina',
+    'bosniaherzegovina': 'bosniaandherzegovina',
+    'bosniaherz': 'bosniaandherzegovina',
+    'bosniaandherz': 'bosniaandherzegovina',
     // ... other aliases as needed
   };
 

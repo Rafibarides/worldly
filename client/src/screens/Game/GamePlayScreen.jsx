@@ -8,6 +8,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Image,
+  TouchableWithoutFeedback,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -26,7 +29,7 @@ import {
   getTerritoriesForCountry,
 } from "../../utils/countryHelpers";
 import recognizedCountries from "../../utils/recognized_countries.json";
-import { updateDoc, increment, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { updateDoc, increment, doc, onSnapshot, serverTimestamp, getDoc } from "firebase/firestore";
 import { database } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContext";
 import socket from "../../services/socket";
@@ -78,7 +81,7 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 // Updated game duration in seconds: 30 seconds per game
-const GAME_DURATION = 300;
+const GAME_DURATION = 660;
 
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, challengeId, gameId } = route.params;
@@ -103,8 +106,40 @@ export default function GamePlayScreen({ route, navigation }) {
       if (challengeId) {
         const challengeRef = doc(database, "challenges", challengeId);
 
-        const unsubscribe = onSnapshot(challengeRef, (docSnap) => {
-          if (docSnap.exists()) setGameData(docSnap.data());
+        const unsubscribe = onSnapshot(challengeRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Find the opponent's user ID
+            let opponentId = null;
+            if (currentUser) {
+              opponentId = data.challengerId === currentUser.uid 
+                ? data.challengedId 
+                : data.challengerId;
+            }
+            
+            // If we have an opponent ID, fetch their username and avatar
+            if (opponentId) {
+              try {
+                const opponentDoc = await getDoc(doc(database, "users", opponentId));
+                if (opponentDoc.exists()) {
+                  // Add the opponent's username and avatar to the game data
+                  setGameData({
+                    ...data,
+                    opponentUsername: opponentDoc.data().username,
+                    opponentAvatarUrl: opponentDoc.data().avatarUrl
+                  });
+                } else {
+                  setGameData(data);
+                }
+              } catch (error) {
+                console.log("Error fetching opponent data:", error);
+                setGameData(data);
+              }
+            } else {
+              setGameData(data);
+            }
+          }
         });
 
         return () => unsubscribe();
@@ -392,6 +427,18 @@ export default function GamePlayScreen({ route, navigation }) {
     });
   };
 
+  // Add this near the beginning of the component to inspect the GeoJSON data
+  useEffect(() => {
+    // Find Bosnia in the GeoJSON data
+    const bosniaFeature = filteredWorldData.features.find(feat => 
+      feat?.properties?.NAME.toLowerCase().includes("bosnia")
+    );
+    console.log("Bosnia feature in GeoJSON:", bosniaFeature?.properties?.NAME);
+    
+    // Also log all feature names to find any discrepancies
+    console.log("All feature names:", filteredWorldData.features.map(f => f.properties.NAME));
+  }, []);
+
   const handleTextChange = async (text) => {
     try {
       let txt = text.trim().toLowerCase();
@@ -403,18 +450,13 @@ export default function GamePlayScreen({ route, navigation }) {
         }
         const normalizedGuess = normalizeCountryName(text);
         const matchedFeature = filteredWorldData.features.find((feat) => {
-          return (
-            feat?.properties?.NAME.toLowerCase() ===
-            normalizedGuess.toLowerCase()
-          );
+          return normalizeCountryName(feat?.properties?.NAME) === normalizedGuess;
         });
 
         if (matchedFeature) {
           const countryName = matchedFeature.properties.NAME;
           const normalizedCountryName = normalizeCountryName(countryName);
-          const alreadyGuessed = guessedCountries.includes(
-            normalizedCountryName
-          );
+          const alreadyGuessed = guessedCountries.includes(normalizedCountryName);
           if (!alreadyGuessed) {
             const territories = getTerritoriesForCountry(normalizedCountryName);
             setGuessedCountries((prev) => [
@@ -433,10 +475,13 @@ export default function GamePlayScreen({ route, navigation }) {
                   score: list[scoreIndex].score + 1,
                 };
               }
-              await updateDoc(doc(database, "challenges", challengeId), {
+              setGuess("");
+              updateDoc(doc(database, "challenges", challengeId), {
                 scoreList: list,
                 country: countries,
-              });
+              }).catch(error => console.error("Error updating document:", error));
+            } else {
+              setGuess("");
             }
 
             const isRecognized = recognizedCountries.recognized_countries.some(
@@ -448,7 +493,6 @@ export default function GamePlayScreen({ route, navigation }) {
               animateScore();
               console.log("Game data set successfully!");
             }
-            setGuess("");
           } else {
             shakeInput();
             showToast();
@@ -491,14 +535,27 @@ export default function GamePlayScreen({ route, navigation }) {
                     score: list[scoreIndex].score + 1,
                   };
                 }
-                await updateDoc(doc(database, "challenges", challengeId), {
+                setGuess("");
+                updateDoc(doc(database, "challenges", challengeId), {
                   scoreList: list,
                   country: countries,
-                });
+                }).catch(error => console.error("Error updating document:", error));
+              } else {
+                setGuess("");
               }
-              setGuess("");
             }
           }
+        }
+
+        if (normalizedGuess.includes("bosnia")) {
+          console.log("Normalized guess:", normalizedGuess);
+          console.log("Current guessedCountries:", guessedCountries);
+          
+          // Check if any feature matches this guess
+          const matchingFeature = filteredWorldData.features.find(feat => 
+            normalizeCountryName(feat?.properties?.NAME) === normalizedGuess
+          );
+          console.log("Matching feature:", matchingFeature?.properties?.NAME);
         }
       }
     } catch (error) {
@@ -733,6 +790,74 @@ export default function GamePlayScreen({ route, navigation }) {
     };
   }, []);
 
+  // Add these shared values near the other useSharedValue declarations (around line 130-140)
+  const userScoreScale = useSharedValue(1);
+  const opponentScoreScale = useSharedValue(1);
+
+  // Add this function to trigger the score animation
+  const animateScoreCard = (isUser) => {
+    const sharedValue = isUser ? userScoreScale : opponentScoreScale;
+    sharedValue.value = withSequence(
+      withTiming(1.15, { duration: 150 }),
+      withTiming(1, { duration: 150 })
+    );
+  };
+
+  // Add this effect to watch for score changes and trigger animations
+  useEffect(() => {
+    if (score > 0 && gameData?.scoreList) {
+      // Find previous score to compare
+      const prevScore = scoreRef.current - 1;
+      if (score > prevScore) {
+        // Animate user's score card when they get a point
+        animateScoreCard(true);
+      }
+    }
+  }, [score]);
+
+  // Add a ref to track the opponent's previous score
+  const prevOpponentScoreRef = useRef(0);
+
+  // Update the effect to watch for opponent score changes
+  useEffect(() => {
+    if (gameType === "multiplayer" && gameData?.scoreList) {
+      const opponentEntry = gameData.scoreList.find(e => e.uid !== currentUser.uid);
+      if (opponentEntry) {
+        const currentOpponentScore = opponentEntry.score;
+        // Check if the score has increased
+        if (currentOpponentScore > prevOpponentScoreRef.current) {
+          // Animate opponent's score card when they get a point
+          animateScoreCard(false);
+          // Update the previous score reference
+          prevOpponentScoreRef.current = currentOpponentScore;
+        }
+      }
+    }
+  }, [gameData?.scoreList]);
+
+  // Create animated styles for the score cards
+  const userScoreAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: userScoreScale.value }],
+    };
+  });
+
+  const opponentScoreAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: opponentScoreScale.value }],
+    };
+  });
+
+  // Add these state variables after the other useState declarations (around line 93)
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
+  // Add this function to handle card press
+  const handleCardPress = (player) => {
+    setSelectedPlayer(player);
+    setModalVisible(true);
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: 60 }]}
@@ -756,32 +881,37 @@ export default function GamePlayScreen({ route, navigation }) {
             Guessed: {guessedCountries.length} countries
           </Text>
         ) : (
-          !!gameData?.scoreList?.length &&
-          gameData?.scoreList?.map((e) => {
-            let isCur = e.uid == currentUser.uid;
-            return (
-              <View key={e.uid}>
-                <AnimatedText
-                  style={[
-                    styles.score,
-                    scoreAnimatedStyle,
-                    !isCur && { color: "blue" },
-                  ]}
-                >
-                  {isCur ? "You" : "Challenger"}
-                </AnimatedText>
-                <AnimatedText
-                  style={[
-                    styles.score,
-                    scoreAnimatedStyle,
-                    !isCur && { color: "blue" },
-                  ]}
-                >
-                  {e.score}/196
-                </AnimatedText>
-              </View>
-            );
-          })
+          <View style={styles.scoreCardsContainer}>
+            {!!gameData?.scoreList?.length &&
+              gameData?.scoreList?.map((e) => {
+                let isCur = e.uid === currentUser.uid;
+                return (
+                  <TouchableOpacity
+                    key={e.uid}
+                    onPress={() => handleCardPress({ ...e, isCur: e.uid === currentUser.uid })}
+                  >
+                    <Animated.View 
+                      style={[
+                        styles.scoreCard, 
+                        isCur ? styles.userScoreCard : styles.opponentScoreCard,
+                        isCur ? userScoreAnimatedStyle : opponentScoreAnimatedStyle
+                      ]}
+                    >
+                      <Text 
+                        style={styles.playerName}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {isCur ? "You" : gameData?.opponentUsername || "Challenger"}
+                      </Text>
+                      <Text style={styles.playerScore}>
+                        {e.score}/196
+                      </Text>
+                    </Animated.View>
+                  </TouchableOpacity>
+                );
+              })}
+          </View>
         )}
       </View>
 
@@ -815,6 +945,63 @@ export default function GamePlayScreen({ route, navigation }) {
           gameType={gameType}
         />
       </AnimatedView>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <TouchableWithoutFeedback>
+              <View style={[
+                styles.modalCard,
+                selectedPlayer?.isCur ? styles.userScoreCard : styles.opponentScoreCard
+              ]}>
+                <View style={styles.modalHeader}>
+                  <Image 
+                    source={
+                      selectedPlayer?.isCur 
+                        ? currentUser?.avatarUrl 
+                          ? { uri: currentUser.avatarUrl } 
+                          : require('../../../assets/images/default-avatar.png')
+                        : gameData?.opponentAvatarUrl 
+                          ? { uri: gameData.opponentAvatarUrl } 
+                          : require('../../../assets/images/default-avatar.png')
+                    } 
+                    style={styles.profilePhoto} 
+                  />
+                  <Text style={styles.modalPlayerName}>
+                    {selectedPlayer?.isCur ? "You" : gameData?.opponentUsername || "Challenger"}
+                  </Text>
+                </View>
+                
+                <Text style={styles.modalPlayerScore}>
+                  {selectedPlayer?.score}/196
+                </Text>
+                
+                <Text style={styles.encouragingMessage}>
+                  {selectedPlayer?.isCur 
+                    ? `Guess ${196 - selectedPlayer?.score} more countries to win!` 
+                    : `${gameData?.opponentUsername || "Challenger"} has ${196 - selectedPlayer?.score} countries left to win!`}
+                </Text>
+                
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -884,5 +1071,93 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  scoreCardsContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  scoreCard: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    width: 120,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userScoreCard: {
+    backgroundColor: "#92c47b", // Updated green color for user's card
+  },
+  opponentScoreCard: {
+    backgroundColor: "#0089c2", // Updated blue color for opponent's card
+  },
+  playerName: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+    width: "100%",
+    textAlign: "center",
+    numberOfLines: 1,
+    ellipsizeMode: "tail",
+  },
+  playerScore: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    maxWidth: 300,
+  },
+  modalCard: {
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  profilePhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  modalPlayerName: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalPlayerScore: {
+    color: 'white',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginVertical: 10,
+  },
+  encouragingMessage: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  closeButton: {
+    marginTop: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 20,
+  },
+  closeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
