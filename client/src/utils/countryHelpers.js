@@ -77,6 +77,10 @@ export const countryVariations = {
   'ivory coast': "côte d'ivoire",
   'cote divoire': "côte d'ivoire",
   'cote d ivoire': "côte d'ivoire",
+  'cotedivoire': "côte d'ivoire",
+  "côte d'ivoire" : "côte d'ivoire",
+  "côtedivoire": "côte d'ivoire",
+  "côte d'ivoire" : "côte d'ivoire",
   'czechia': 'czech republic',
   'czech republic': 'czech republic',
   'holland': 'netherlands',
@@ -236,6 +240,10 @@ export const geoJSONNameMap = {
   'são tomé and príncipe': 'São Tomé and Principe',
   'saint vincent and the grenadines': 'St. Vin. and Gren.',
   'equatorial guinea': 'Eq. Guinea',
+  'equatorialguinea': 'Eq. Guinea',
+  'eq guinea': 'Eq. Guinea',
+  'eqguinea': 'Eq. Guinea',
+  'eq. guinea': 'Eq. Guinea',
   'east timor': 'Timor-Leste',
   'timor': 'Timor-Leste',
   'burma': 'Myanmar',
@@ -254,6 +262,10 @@ export const geoJSONNameMap = {
   'morocco': 'Morocco',
   'tanzenia': 'Tanzania',
   'south sudan': 'S. Sudan',
+  'southsudan': 'S. Sudan',
+  's sudan': 'S. Sudan',
+  'ssudan': 'S. Sudan',
+  's. sudan': 'S. Sudan',
   'saint lucia': 'St. Lucia',
   'saint kitts': 'St. Kitts',
   'saint lucia': 'st Lucia',
@@ -304,6 +316,36 @@ export const geoJSONNameMap = {
   'cape verde': 'Cabo Verde',
   'green cape': 'Cabo Verde',
   
+  // Fix for South Sudan - ensure exact match with "S. Sudan" (capital S)
+  'south sudan': 'S. Sudan',
+  'southsudan': 'S. Sudan',
+  's sudan': 'S. Sudan',
+  'ssudan': 'S. Sudan',
+  's. sudan': 'S. Sudan',
+  
+  // Fix for Dominican Republic - ensure exact match with "Dominican Rep."
+  'dominican republic': 'Dominican Rep.',
+  'dominicanrepublic': 'Dominican Rep.',
+  'dominican rep': 'Dominican Rep.',
+  'dominicanrep': 'Dominican Rep.',
+  'dr': 'Dominican Rep.',
+  
+  // Fix for Democratic Republic of Congo - ensure exact match with "Dem. Rep. Congo"
+  'democratic republic of the congo': 'Dem. Rep. Congo',
+  'democraticrepublicofthecongo': 'Dem. Rep. Congo',
+  'democratic republic of congo': 'Dem. Rep. Congo',
+  'democraticrepublicofcongo': 'Dem. Rep. Congo',
+  'drc': 'Dem. Rep. Congo',
+  'dem rep congo': 'Dem. Rep. Congo',
+  'demrepcongo': 'Dem. Rep. Congo',
+  
+  // Fix for Equatorial Guinea - ensure exact match with "Eq. Guinea"
+  'equatorial guinea': 'Eq. Guinea',
+  'equatorialguinea': 'Eq. Guinea',
+  'eq guinea': 'Eq. Guinea',
+  'eqguinea': 'Eq. Guinea',
+  'eq. guinea': 'Eq. Guinea',
+  
   // Add additional aliases as needed.
 };
 
@@ -317,21 +359,41 @@ const aliasMapping = {
   "dominican rep": "dominican rep.",
 };
 
-// A helper function to normalize country names for robust matching.
+// Updated normalizeCountryName function
 export const normalizeCountryName = (name) => {
   if (!name || typeof name !== 'string') return '';
-  
-  // Lowercase, trim, and remove extraneous punctuation
-  let normalized = name.toLowerCase().trim();
-  normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ''); // remove punctuation
-  normalized = normalized.replace(/\s+/g, ''); // remove spaces
-  
-  // Check if there's an alias for the given normalized name.
-  if (aliasMapping[normalized]) {
-    normalized = aliasMapping[normalized];
+
+  // First, handle special cases explicitly to ensure consistent normalization
+  if (name.includes("Ivory Coast") || name.includes("Côte d'Ivoire")) {
+    return "cotedivoire";
   }
+  if (name.includes("Eswatini") || name.includes("Swaziland")) {
+    return "eswatini";
+  }
+  if (name.includes("São Tomé") || name.includes("Sao Tome")) {
+    return "saotomeandprincipe";
+  }
+  if (name.includes("Czech") || name.includes("Czechia")) {
+    return "czechrepublic";
+  }
+  if (name.includes("Myanmar") || name.includes("Burma")) {
+    return "myanmar";
+  }
+
+  // Remove parenthetical content
+  let normalized = name.replace(/\s*\(.*?\)/g, '').trim();
   
-  // Define aliases to map commonly used variants to a canonical name.
+  // Lowercase
+  normalized = normalized.toLowerCase();
+
+  // Remove diacritics (accents)
+  normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Remove punctuation and extra whitespace
+  normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()']/g, '');
+  normalized = normalized.replace(/\s+/g, '');
+
+  // Define aliases to map commonly used variants to a canonical name
   const aliases = {
     'us': 'unitedstatesofamerica',
     'usa': 'unitedstatesofamerica',
@@ -349,58 +411,37 @@ export const normalizeCountryName = (name) => {
     'kazakhstan': 'kazakstan',
     'uae': 'unitedarabemirates',
     'car': 'centralafricanrepublic',
-    'centralafricanrep': 'centralafricanrepublic', // In case geoJSON abbreviates the country name.
+    'centralafricanrep': 'centralafricanrepublic',
     'dr': "dominicanrepublic",
-    'drc': 'demrepcongo',
-    'democraticrepublicofthecongo': 'demrepcongo',
+    'drc': 'democraticrepublicofthecongo',
+    'democraticrepublicofthecongo': 'democraticrepublicofthecongo',
+    'republicofthecongo': 'republicofthecongo',
+    'congo': 'republicofthecongo',
     'denmark': 'greenland',
-    // Additional aliases for Czech Republic
+    'ivorycoast': 'cotedivoire',
+    'cotedivoire': 'cotedivoire',
+    'coted': 'cotedivoire',
+    'cotedivoir': 'cotedivoire',
+    'cotedivior': 'cotedivoire',
+    'coteivoire': 'cotedivoire',
+    'cotedeivoire': 'cotedivoire',
+    'côtedivoire': 'cotedivoire',
+    'côtedivoir': 'cotedivoire',
+    'eswatini': 'eswatini',
+    'swaziland': 'eswatini',
+    'saotome': 'saotomeandprincipe',
+    'saotomeandprincipe': 'saotomeandprincipe',
     'czechrepublic': 'czechrepublic',
     'czechia': 'czechrepublic',
     'czech': 'czechrepublic',
-    'chechrepublic': 'czechrepublic',
-    'chechia': 'czechrepublic',
-    'czechiaczechrepublic': 'czechrepublic',
-    // Additional aliases for São Tomé and Príncipe (Sao Tome)
-    'saotome': 'sãotoméandpríncipe',
-    'saotomeandprincipe': 'sãotoméandpríncipe',
-    // Additional aliases for Bosnia
-    'bosnia': 'bosniaandherzegovina',
-    'herzegovina': 'bosniaandherzegovina',
-    'bosniaherzegovina': 'bosniaandherzegovina',
-    'bosniaandherzegovina': 'bosniaandherzegovina',
-    'bosniaandherz': 'bosniaandherzegovina',
-    // Additional aliases for Macedonia / North Macedonia
-    'macedonia': 'northmacedonia',
-    'nmacedonia': 'northmacedonia',
-    'northmacedonia': 'northmacedonia',
-    // Additional failsafe aliases for St. Lucia, St. Vincent, and St. Kitts
-    'stlucia': 'saintlucia',
-    'saintlucia': 'saintlucia',
-    'st.lucia': 'saintlucia',
-    'stvincent': 'saintvincentandthegrenadines',
-    'saintvincent': 'saintvincentandthegrenadines',
-    'stvincentandthegrenadines': 'saintvincentandthegrenadines',
-    'saintvincentandthegrenadines': 'saintvincentandthegrenadines',
-    'stkitts': 'saintkittsandnevis',
-    'st.kitts': 'saintkittsandnevis',
-    'saintkitts': 'saintkittsandnevis',
-    'stkittsandnevis': 'saintkittsandnevis',
-    'saintkittsandnevis': 'saintkittsandnevis',
-    // Additional aliases for Antigua and Barbuda
-    'antigua': 'antiguaandbarbuda',
-    'barbuda': 'antiguaandbarbuda',
-    'antiguaandbarb': 'antiguaandbarbuda',
-    'antiguabarbuda': 'antiguaandbarbuda',
-    'antiguaandbarbuda': 'antiguaandbarbuda',
-    // Add additional aliases as needed.
-    'czechiaczechrepublic': 'czechrepublic',
-    'vatican': 'vaticancity',
-    'vaticancity': 'vaticancity',
-    'holysee': 'vaticancity',
+    // ... other aliases as needed
   };
+
+  // After all the normalization steps, check if we need to map to a GeoJSON name
+  const normalizedForScoring = aliases[normalized] || normalized;
   
-  return aliases[normalized] || normalized;
+  // Return the GeoJSON name if it exists, otherwise return the normalized name
+  return geoJSONNameMap[normalizedForScoring] || normalizedForScoring;
 };
 
 // Helper function to get all territories for a country
@@ -433,6 +474,10 @@ export function getTerritoryMatch(guess) {
   // Special handling: if user types "denmark" (or "greenland"), return "Greenland"
   if (normalizedGuess === "denmark" || normalizedGuess === "greenland") {
     return "Greenland";
+  }
+  // Special handling: if user types "somalia", return "Somaliland" as well
+  if (normalizedGuess === "somalia" || normalizedGuess === "somaliland") {
+    return "Somaliland";
   }
   const key = Object.keys(territoryMap).find(
     k => k.toLowerCase() === normalizedGuess

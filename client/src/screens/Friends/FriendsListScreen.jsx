@@ -74,14 +74,36 @@ export default function FriendsListScreen({ navigation }) {
 
       // Fetch each friend's details from the "users" collection
       const fetchedFriends = [];
-      for (const friendId of uniqueFriendIds) {
+      
+      // First, fetch all user data
+      const userPromises = uniqueFriendIds.map(friendId => {
         const userRef = doc(database, "users", friendId);
-        const userSnap = await getDoc(userRef);
+        return getDoc(userRef);
+      });
+      
+      const userSnapshots = await Promise.all(userPromises);
+      
+      // Process the results
+      userSnapshots.forEach(userSnap => {
         if (userSnap.exists()) {
           fetchedFriends.push(userSnap.data());
         }
-      }
+      });
+      
+      // Set friends first so the UI can render
       setFriends(fetchedFriends);
+      
+      // Then preload images in the background
+      if (fetchedFriends.length > 0) {
+        Promise.all(
+          fetchedFriends.map(friend => 
+            friend.avatarUrl ? Image.prefetch(friend.avatarUrl) : Promise.resolve()
+          )
+        ).catch(err => {
+          // Silently handle prefetch errors
+          console.warn("Error prefetching friend avatars:", err);
+        });
+      }
     } catch (error) {
       console.error("Error fetching friends:", error);
     }
@@ -96,10 +118,26 @@ export default function FriendsListScreen({ navigation }) {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (currentUser) {
+      // Don't define hooks inside callbacks - this was causing the error
+      const now = Date.now();
+      
+      // Check if we need to refresh based on route params or time
+      const routeParams = navigation.getState()?.routes?.find(r => r.name === "FriendsList")?.params;
+      const shouldRefresh = routeParams?.refreshFriends || false;
+      
+      if (currentUser && (shouldRefresh || !friends.length)) {
         fetchFriends();
+        
+        // Clear the refresh flag after using it
+        if (shouldRefresh) {
+          navigation.setParams({ refreshFriends: false });
+        }
       }
-    }, [currentUser])
+      
+      return () => {
+        // Cleanup if needed
+      };
+    }, [currentUser, navigation, friends.length])
   );
 
   useFocusEffect(

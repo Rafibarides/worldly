@@ -121,15 +121,14 @@ export default function GameSummaryScreen() {
 
     // Inside the forEach loop for continents, add this before calculating percentages:
     console.log(`[${continent}] Normalized continent countries:`, continentCanonical);
-    console.log(`[${continent}] Normalized guessed countries:`, [...guessedCountries].map(g => normalizeCountryName(g)));
+    console.log(`[${continent}] Normalized guessed countries:`, [...guessedSet].map(g => normalizeCountryName(g)));
 
-    // After the guessedCountries.forEach loop, add this to see which countries weren't matched:
-    if (continent === "North America") {
-      const missingCountries = continentCanonical.filter(country => 
-        ![...guessedSet].some(guessed => guessed === country)
-      );
-      console.log(`[${continent}] Missing countries:`, missingCountries);
-    }
+    // Find countries that weren't matched
+    const missingCountries = continentCanonical.filter(country => 
+      !Array.from(guessedSet).includes(country)
+    );
+    console.log(`[${continent}] Missing countries:`, missingCountries);
+    console.log(`[${continent}] Guessed set:`, Array.from(guessedSet));
   });
 
   // NEW: Get current user and setCurrentUser from the Auth context

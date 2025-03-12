@@ -53,6 +53,15 @@ export default function FriendSearchScreen() {
       if (users.length > 0) {
         const friendIds = users.map(u => u.uid);
         await fetchFriendshipStatuses(friendIds);
+        
+        // Preload avatar images in the background
+        Promise.all(
+          users.map(user => 
+            user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
+          )
+        ).catch(err => {
+          console.warn("Error prefetching user avatars:", err);
+        });
       }
     } catch (err) {
       console.error("Error fetching recent users:", err);
@@ -110,15 +119,19 @@ export default function FriendSearchScreen() {
       await fetchRecentUsers();
       return;
     }
+    
     setRecentUsers([]);
     setLoading(true);
     setError(null);
+    
     try {
       const searchTermLower = term.trim().toLowerCase();
       const usersRef = collection(database, "users");
       const q = query(usersRef, orderBy("username"));
       const querySnapshot = await getDocs(q);
       const users = [];
+      
+      // Process all users at once
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         if (
@@ -129,6 +142,8 @@ export default function FriendSearchScreen() {
           users.push(data);
         }
       });
+      
+      // Sort results
       users.sort((a, b) => {
         const aUsername = a.username.toLowerCase();
         const bUsername = b.username.toLowerCase();
@@ -138,17 +153,31 @@ export default function FriendSearchScreen() {
         if (!startsA && startsB) return 1;
         return aUsername.localeCompare(bUsername);
       });
+      
+      // Set results first so UI can render
       setResults(users);
-
+      
       if (users.length > 0) {
+        // Start prefetching images immediately
+        const prefetchPromises = users.map(user => 
+          user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
+        );
+        
+        // Fetch friendship statuses in parallel with image prefetching
         const friendIds = users.map(u => u.uid);
-        await fetchFriendshipStatuses(friendIds);
+        const [_] = await Promise.all([
+          fetchFriendshipStatuses(friendIds),
+          Promise.all(prefetchPromises).catch(err => {
+            console.warn("Error prefetching search result avatars:", err);
+          })
+        ]);
       } else {
         setFriendshipStatuses({});
       }
     } catch (err) {
       console.error("Error searching users: ", err);
     }
+    
     setLoading(false);
   };
 
@@ -175,18 +204,6 @@ export default function FriendSearchScreen() {
     }
     setRefreshing(false);
   };
-
-  useEffect(() => {
-    if (results.length > 0) {
-      Promise.all(
-        results.map(user =>
-          user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
-        )
-      ).then(() => {
-        setPrefetched(true);
-      });
-    }
-  }, [results]);
 
   return (
     <View style={styles.container}>

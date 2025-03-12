@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  BackHandler,
 } from 'react-native';
 import {
   collection,
@@ -19,12 +20,16 @@ import {
 } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function FriendRequestsScreen() {
   const { currentUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [hasAcceptedRequest, setHasAcceptedRequest] = useState(false);
+  const navigation = useNavigation();
 
   // Fetch friend requests for which the current user is the requestee and the status is "pending".
   const fetchFriendRequests = async () => {
@@ -50,6 +55,18 @@ export default function FriendRequestsScreen() {
           });
         }
       }
+      
+      // Preload avatar images in the background
+      Promise.all(
+        friendRequests.map(request => 
+          request.requester.avatarUrl ? 
+            Image.prefetch(request.requester.avatarUrl) : 
+            Promise.resolve()
+        )
+      ).catch(err => {
+        console.warn("Error prefetching requester avatars:", err);
+      });
+      
       setRequests(friendRequests);
     } catch (err) {
       console.error("Error fetching friend requests: ", err);
@@ -69,14 +86,65 @@ export default function FriendRequestsScreen() {
       await updateDoc(friendshipDocRef, {
         status: "confirmed",
       });
-      // Friend request accepted silently; no alert needed.
-      // Refresh friend requests after accepting one
+      // Set the flag to indicate we've accepted a request
+      setHasAcceptedRequest(true);
+      // Refresh friend requests
       fetchFriendRequests();
     } catch (err) {
       console.error("Error accepting friend request: ", err);
       alert("Error accepting friend request.");
     }
   };
+
+  // Update the useEffect for navigation
+  useEffect(() => {
+    return () => {
+      if (hasAcceptedRequest && navigation.isFocused()) {
+        // Fix the navigation to go to FriendsList instead of Game screen
+        navigation.navigate("FriendsList", { refreshFriends: true });
+      }
+    };
+  }, [hasAcceptedRequest, navigation]);
+
+  // Add a back button handler to ensure proper navigation
+  const handleBackPress = () => {
+    // Navigate back to FriendsList and refresh if needed
+    navigation.navigate("FriendsList", { 
+      refreshFriends: hasAcceptedRequest 
+    });
+    return true; // Prevents default back behavior
+  };
+
+  // Add this to the component to handle the back button
+  useEffect(() => {
+    // Set up back button handler
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+
+    // Clean up the event listener
+    return () => backHandler.remove();
+  }, [hasAcceptedRequest]);
+
+  useEffect(() => {
+    // Set up navigation options with a custom back button handler
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity 
+          onPress={() => {
+            // Navigate to FriendsList with refresh if needed
+            navigation.navigate("FriendsList", { 
+              refreshFriends: hasAcceptedRequest 
+            });
+          }}
+          style={{ marginLeft: 10 }}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#ffc268" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, hasAcceptedRequest]);
 
   return (
     <View style={styles.container}>
