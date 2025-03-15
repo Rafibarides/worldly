@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -23,6 +24,8 @@ import { database } from "../services/firebase";
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Badge from './Badge/Badge';
+import CachedImage from './CachedImage';
+import * as FileSystem from 'expo-file-system';
 
 export default function ProfileView({
   user,
@@ -35,6 +38,9 @@ export default function ProfileView({
   const isCurrentUser = currentUser && user && currentUser.uid === user.uid;
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
   const [selectedBadgeId, setSelectedBadgeId] = useState(null);
+  const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [levelModalVisible, setLevelModalVisible] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const renderBadges = () => {
     const earnedBadges = new Set(user?.badges || []);
@@ -82,103 +88,115 @@ export default function ProfileView({
     });
   };
 
-  const handleChangeAvatar = async () => {
+  const handleImagePick = async () => {
     try {
-      // You can request permission if necessary (optional)
-      // const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      // if (permissionResult.granted === false) {
-      //   Alert.alert("Permission required", "Permission to access camera roll is required!");
-      //   return;
-      // }
-
-      const options = {
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
-      };
-
-      const result = await ImagePicker.launchImageLibraryAsync(options);
-
-      if (result.canceled) {
-        console.log('User cancelled image picker');
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
         return;
       }
 
-      if (result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        const uploadUrl = await uploadImageAsync(uri);
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        // Ensure image is saved as JPG
+        exif: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsUploading(true);
+        const selectedImage = result.assets[0];
         
-        if (uploadUrl) {
-          // Update Firestore with new avatar URL
-          const userRef = doc(database, "users", user.uid);
+        // Process the image to ensure it's a JPG
+        const processedUri = await processImageToJpg(selectedImage.uri);
+        
+        // Upload the processed image
+        const downloadURL = await uploadImageToFirebase(processedUri);
+        
+        // Update user profile with new avatar URL
+        if (downloadURL) {
+          const userRef = doc(database, "users", currentUser.uid);
           await updateDoc(userRef, {
-            avatarUrl: uploadUrl
+            avatarUrl: downloadURL
           });
           
-          // Update local state if it's the current user
-          if (isCurrentUser) {
-            setCurrentUser(prev => ({ ...prev, avatarUrl: uploadUrl }));
+          // Update local user state
+          setCurrentUser({
+            ...currentUser,
+            avatarUrl: downloadURL
+          });
+          
+          // Clear image cache for the old avatar URL if it exists
+          if (currentUser.avatarUrl) {
+            clearImageFromCache(currentUser.avatarUrl);
           }
         }
+        setIsUploading(false);
       }
     } catch (error) {
-      console.error('Error changing avatar:', error);
+      console.error("Error picking or uploading image:", error);
+      Alert.alert("Error", "Failed to update profile picture. Please try again.");
+      setIsUploading(false);
     }
   };
 
-  const uploadImageAsync = async (uri) => {
+  const processImageToJpg = async (uri) => {
     try {
-      // Get Firebase storage instance
-      const storage = getStorage();
+      // Create a unique filename with jpg extension
+      const filename = `${Date.now()}.jpg`;
+      const destinationUri = `${FileSystem.cacheDirectory}${filename}`;
       
-      // Log for debugging
-      console.log("Starting image upload process");
-      console.log("Image URI:", uri);
+      // Copy the file to our cache with the jpg extension
+      await FileSystem.copyAsync({
+        from: uri,
+        to: destinationUri
+      });
       
-      // Fetch the image as a blob
+      return destinationUri;
+    } catch (error) {
+      console.error("Error processing image to JPG:", error);
+      // If processing fails, return the original URI
+      return uri;
+    }
+  };
+
+  const uploadImageToFirebase = async (uri) => {
+    try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      console.log("Blob size:", blob.size);
       
-      // Create a unique filename
-      const filename = `avatar_${Date.now()}`;
-      
-      // Create a reference to the storage location
-      // Note: Don't include the gs:// prefix in the ref path
+      // Create a unique filename with jpg extension
+      const filename = `profile_${currentUser.uid}_${Date.now()}.jpg`;
+      const storage = getStorage();
       const storageRef = ref(storage, `avatars/${filename}`);
       
-      console.log("Storage reference created");
-      
-      // Upload the blob with metadata
-      const metadata = {
-        contentType: 'image/jpeg', // Default to JPEG
-      };
-      
-      console.log("Starting upload to Firebase");
-      const snapshot = await uploadBytes(storageRef, blob, metadata);
-      console.log("Upload completed successfully");
+      // Upload the image
+      await uploadBytes(storageRef, blob);
       
       // Get the download URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      console.log("Download URL obtained:", downloadURL);
-      
+      const downloadURL = await getDownloadURL(storageRef);
       return downloadURL;
     } catch (error) {
-      console.error('Error uploading image:', error);
-      
-      // More detailed error logging
-      if (error.code) {
-        console.error('Error code:', error.code);
-      }
-      
-      if (error.message) {
-        console.error('Error message:', error.message);
-      }
-      
-      if (error.serverResponse) {
-        console.error('Server response:', error.serverResponse);
-      }
-      
+      console.error("Error uploading image to Firebase:", error);
       return null;
+    }
+  };
+
+  const clearImageFromCache = async (imageUrl) => {
+    try {
+      const filename = imageUrl.split('/').pop();
+      const cacheFilePath = `${FileSystem.cacheDirectory}${filename}`;
+      
+      const fileInfo = await FileSystem.getInfoAsync(cacheFilePath);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(cacheFilePath);
+      }
+    } catch (error) {
+      console.warn("Error clearing image from cache:", error);
     }
   };
 
@@ -186,14 +204,17 @@ export default function ProfileView({
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* UPDATED HEADER ROW: Left corner displays settings (or challenge) and right corner displays level pill */}
       <View style={styles.headerRow}>
-        <View style={styles.levelPill}>
+        <TouchableOpacity 
+          style={styles.levelPill}
+          onPress={() => setLevelModalVisible(true)}
+        >
           <Image
             source={require("../../assets/images/medal.png")}
             style={styles.medalIconInPill}
             resizeMode="contain"
           />
           <Text style={styles.levelText}>Level {user?.level || 1}</Text>
-        </View>
+        </TouchableOpacity>
         {isCurrentUser && (
           <TouchableOpacity
             style={styles.settingsButton}
@@ -208,8 +229,21 @@ export default function ProfileView({
       <View style={styles.profileSection}>
         <View style={styles.avatarContainer}>
           {isCurrentUser ? (
-            <TouchableOpacity onPress={handleChangeAvatar}>
-              <Image
+            <TouchableOpacity onPress={handleImagePick} style={styles.avatarWrapper}>
+              <CachedImage
+                style={styles.avatar}
+                source={{
+                  uri: user?.avatarUrl ||
+                    "https://api.dicebear.com/9.x/avataaars/png?seed=default",
+                }}
+              />
+              <View style={styles.editIconContainer}>
+                <MaterialIcons name="edit" size={16} color="#fff" />
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => setAvatarModalVisible(true)}>
+              <CachedImage
                 style={styles.avatar}
                 source={{
                   uri: user?.avatarUrl ||
@@ -217,14 +251,6 @@ export default function ProfileView({
                 }}
               />
             </TouchableOpacity>
-          ) : (
-            <Image
-              style={styles.avatar}
-              source={{
-                uri: user?.avatarUrl ||
-                  "https://api.dicebear.com/9.x/avataaars/png?seed=default",
-              }}
-            />
           )}
           <Text style={styles.username}>{user?.username}</Text>
         </View>
@@ -334,6 +360,64 @@ export default function ProfileView({
         onClose={() => setBadgeModalVisible(false)}
         initialBadgeId={selectedBadgeId}
       />
+
+      <Modal
+        visible={avatarModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setAvatarModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setAvatarModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <CachedImage
+              style={styles.largeAvatar}
+              source={{
+                uri: user?.avatarUrl ||
+                  "https://api.dicebear.com/9.x/avataaars/png?seed=default",
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={levelModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLevelModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLevelModalVisible(false)}
+        >
+          <View style={styles.levelModalContent}>
+            <Image
+              source={require("../../assets/images/medal.png")}
+              style={styles.largeMedalIcon}
+            />
+            <Text style={styles.levelModalTitle}>Level {user?.level || 1}</Text>
+            <Text style={styles.levelModalDescription}>
+              Keep playing to increase your level! Each level requires more games played.
+            </Text>
+            <View style={styles.levelProgressContainer}>
+              <Text style={styles.levelProgressText}>
+                Games played: {user?.stats?.gamesPlayed || 0}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setLevelModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -574,6 +658,93 @@ const styles = StyleSheet.create({
   },
   badgesSection: {
     padding: 20,
-  }
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  editIconContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#fdc15f',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    zIndex: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  largeAvatar: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    borderWidth: 5,
+    borderColor: '#fff',
+  },
+  levelModalContent: {
+    width: '80%',
+    backgroundColor: '#87c66b',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  largeMedalIcon: {
+    width: 80,
+    height: 80,
+    marginBottom: 15,
+  },
+  levelModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  levelModalDescription: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  levelProgressContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 10,
+    borderRadius: 10,
+    width: '100%',
+    marginBottom: 20,
+  },
+  levelProgressText: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  closeModalButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  closeModalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
   

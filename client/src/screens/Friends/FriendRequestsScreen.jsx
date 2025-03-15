@@ -22,6 +22,8 @@ import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import CachedImage from '../../components/CachedImage';
+import * as FileSystem from 'expo-file-system';
 
 export default function FriendRequestsScreen() {
   const { currentUser } = useAuth();
@@ -58,11 +60,24 @@ export default function FriendRequestsScreen() {
       
       // Preload avatar images in the background
       Promise.all(
-        friendRequests.map(request => 
-          request.requester.avatarUrl ? 
-            Image.prefetch(request.requester.avatarUrl) : 
-            Promise.resolve()
-        )
+        friendRequests.map(request => {
+          if (request.requester.avatarUrl) {
+            // Create a unique filename for caching
+            const filename = request.requester.avatarUrl.split('/').pop();
+            const cacheFilePath = `${FileSystem.cacheDirectory}${filename}`;
+            
+            // Check if already cached
+            return FileSystem.getInfoAsync(cacheFilePath)
+              .then(fileInfo => {
+                if (!fileInfo.exists) {
+                  // Download if not cached
+                  return FileSystem.downloadAsync(request.requester.avatarUrl, cacheFilePath);
+                }
+                return Promise.resolve();
+              });
+          }
+          return Promise.resolve();
+        })
       ).catch(err => {
         console.warn("Error prefetching requester avatars:", err);
       });
@@ -157,7 +172,7 @@ export default function FriendRequestsScreen() {
         renderItem={({ item }) => (
           <View style={styles.requestItem}>
             <View style={styles.userInfo}>
-              <Image
+              <CachedImage
                 style={styles.avatar}
                 source={{ uri: item.requester.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
               />

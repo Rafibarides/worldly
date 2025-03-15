@@ -9,6 +9,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { mockGameSettings } from "../../utils/mockData";
@@ -460,6 +461,11 @@ export default function GameScreen() {
     }
   }, [currentUser, navigation]);
 
+  // Add these state variables at the top of the component
+  const [timeInfoModalVisible, setTimeInfoModalVisible] = useState(false);
+  const [pointsInfoModalVisible, setPointsInfoModalVisible] = useState(false);
+  const [gameInfoModalVisible, setGameInfoModalVisible] = useState(false);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -476,13 +482,16 @@ export default function GameScreen() {
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.titlePill}>
+          <TouchableOpacity 
+            style={styles.titlePill}
+            onPress={() => setGameInfoModalVisible(true)}
+          >
             <Animated.Image
               source={require("../../../assets/images/start-up1.png")}
               style={[styles.titleIcon, iconAnimatedStyle]}
             />
             <Text style={styles.titleText}>Start New Game</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Game options */}
@@ -529,18 +538,24 @@ export default function GameScreen() {
         <View style={styles.settingsInfo}>
           <Text style={styles.settingsTitle}>Game Settings</Text>
           <View style={styles.settingCardsContainer}>
-            <View style={styles.settingCard}>
+            <TouchableOpacity 
+              style={styles.settingCard}
+              onPress={() => setTimeInfoModalVisible(true)}
+            >
               <MaterialIcons name="timer" size={20} color="#fff" />
               <Text style={styles.settingCardText}>
-                Time Limit: 11 min
+                Time Limit: 15 min
               </Text>
-            </View>
-            <View style={styles.settingCard}>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.settingCard}
+              onPress={() => setPointsInfoModalVisible(true)}
+            >
               <MaterialIcons name="emoji-events" size={20} color="#fff" />
               <Text style={styles.settingCardText}>
                 Points per Country: 1
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -584,6 +599,102 @@ export default function GameScreen() {
           </View>
         )}
       </View>
+
+      {/* Time Info Modal */}
+      <Modal
+        visible={timeInfoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setTimeInfoModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setTimeInfoModalVisible(false)}
+        >
+          <View style={styles.infoModalContent}>
+            <MaterialIcons name="timer" size={40} color="#fff" style={styles.modalIcon} />
+            <Text style={styles.infoModalTitle}>Time Limit: 15 Minutes</Text>
+            <Text style={styles.infoModalDescription}>
+              You have 15 minutes to guess as many countries as you can. The clock starts ticking as soon as the game begins!
+            </Text>
+            <Text style={styles.infoModalDescription}>
+              In multiplayer mode, if you guess more countries than your opponent before time runs out, you win the game.
+            </Text>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setTimeInfoModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Points Info Modal */}
+      <Modal
+        visible={pointsInfoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPointsInfoModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPointsInfoModalVisible(false)}
+        >
+          <View style={styles.infoModalContent}>
+            <MaterialIcons name="emoji-events" size={40} color="#fff" style={styles.modalIcon} />
+            <Text style={styles.infoModalTitle}>Points System</Text>
+            <Text style={styles.infoModalDescription}>
+              You earn 1 point for each country you correctly guess. Countries can be guessed in any order.
+            </Text>
+            <Text style={styles.infoModalDescription}>
+              Only sovereign nations are accepted as valid answers. Territories, dependencies, and disputed regions are counted.
+            </Text>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setPointsInfoModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Game Info Modal */}
+      <Modal
+        visible={gameInfoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setGameInfoModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setGameInfoModalVisible(false)}
+        >
+          <View style={styles.infoModalContent}>
+            <Animated.Image
+              source={require("../../../assets/images/start-up1.png")}
+              style={[styles.modalIcon, { width: 40, height: 40 }]}
+            />
+            <Text style={styles.infoModalTitle}>Game Options</Text>
+            <Text style={styles.infoModalDescription}>
+              Choose between a <Text style={{fontWeight: 'bold'}}>solo game</Text> to test your geography knowledge, or challenge a friend to a <Text style={{fontWeight: 'bold'}}>multiplayer</Text> match!
+            </Text>
+            <Text style={styles.infoModalDescription}>
+              Select one of the two play modes to start a game.
+            </Text>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setGameInfoModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -794,5 +905,56 @@ const styles = StyleSheet.create({
   rejoinButtonContainer: {
     marginTop: 20,
     alignItems: 'center'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoModalContent: {
+    width: '85%',
+    backgroundColor: '#87c66b',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalIcon: {
+    marginBottom: 15,
+  },
+  infoModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  infoModalDescription: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 15,
+    lineHeight: 22,
+  },
+  closeModalButton: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    shadowColor: "#d2d2d2",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  closeModalButtonText: {
+    color: "#ffc268",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });

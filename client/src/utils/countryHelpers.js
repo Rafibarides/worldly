@@ -146,10 +146,10 @@ export const countryVariations = {
   'sao tome': 'são tomé and príncipe',
   'principe': 'são tomé and príncipe',
   'são tomé and príncipe': 'são tomé and príncipe',
-  'st vincent': 'saint vincent and the grenadines',
-  'saint vincent': 'saint vincent and the grenadines',
-  'grenadines': 'saint vincent and the grenadines',
-  'saint vincent and the grenadines': 'saint vincent and the grenadines',
+  'st vincent': 'saintvincentandthegrenadines',
+  'saint vincent': 'saintvincentandthegrenadines',
+  'grenadines': 'saintvincentandthegrenadines',
+  'saint vincent and the grenadines': 'saintvincentandthegrenadines',
   'micronesia': 'micronesia',
   'federated states of micronesia': 'micronesia',
   'vatican': 'vatican city',
@@ -196,8 +196,8 @@ export const countryVariations = {
   "usa": "unitedstates",
   "us": "unitedstates",
   "america": "unitedstates",
-  "dominicanrepublic": "dominicanrepublic",
-  "dominican": "dominicanrepublic",
+  "dominicanrepublic": "dominican rep.",
+  "dominican": "dominican rep.",
   "antiguaandbarbuda": "antiguaandbarbuda",
   "antigua": "antiguaandbarbuda",
   "barbuda": "antiguaandbarbuda",
@@ -205,13 +205,71 @@ export const countryVariations = {
   "stvincentgrenadines": "saintvincentandthegrenadines",
   "stvincent": "saintvincentandthegrenadines",
   "grenadines": "saintvincentandthegrenadines",
-  "dominicanrep": "dominicanrepublic",
+  "dominicanrep": "dominican rep.",
   "capo verde": "caboverde",
   "cabo verde": "caboverde",
   "cabo verde": "cape verde",
   "green cape": "caboverde",
   // Add explicit entries for Dominica to ensure it's treated as a separate country
   'dominica': 'dominica',
+  'st vincent': 'saintvincentandthegrenadines',
+  'stvincent': 'saintvincentandthegrenadines',
+  'saint vincent': 'saintvincentandthegrenadines',
+  'antigua': 'antiguaandbarbuda',
+  
+  // Make sure these entries are properly defined (around line 204-207)
+  'saintvincent': 'saintvincentandthegrenadines',
+  'stvincentgrenadines': 'saintvincentandthegrenadines',
+  'stvincent': 'saintvincentandthegrenadines',
+  'grenadines': 'saintvincentandthegrenadines',
+  'marshall islands': 'marshall islands',
+  'marshall is': 'marshall islands',
+  'marshall is.': 'marshall islands',
+  'marshallislands': 'marshall islands',
+  'marshallis': 'marshall islands',
+  'marshallisles': 'marshall islands',
+  
+  'solomon islands': 'solomon islands',
+  'solomon is': 'solomon islands',
+  'solomon is.': 'solomon islands',
+  'solomonislands': 'solomon islands',
+  'solomonis': 'solomon islands',
+  'solomonisles': 'solomon islands',
+  
+  // Add similar entries for other island nations that might have this issue
+  'cayman islands': 'cayman islands',
+  'cayman is': 'cayman islands',
+  'cayman is.': 'cayman islands',
+  
+  'falkland islands': 'falkland islands',
+  'falkland is': 'falkland islands',
+  'falkland is.': 'falkland islands',
+  
+  'faroe islands': 'faroe islands',
+  'faeroe islands': 'faroe islands',
+  'faroe is': 'faroe islands',
+  'faeroe is': 'faroe islands',
+  'faroe is.': 'faroe islands',
+  'faeroe is.': 'faroe islands',
+  
+  'british virgin islands': 'british virgin islands',
+  'british virgin is': 'british virgin islands',
+  'british virgin is.': 'british virgin islands',
+  
+  'us virgin islands': 'us virgin islands',
+  'us virgin is': 'us virgin islands',
+  'us virgin is.': 'us virgin islands',
+  'u.s. virgin islands': 'us virgin islands',
+  'u.s. virgin is': 'us virgin islands',
+  'u.s. virgin is.': 'us virgin islands',
+  
+  'turks and caicos islands': 'turks and caicos islands',
+  'turks and caicos is': 'turks and caicos islands',
+  'turks and caicos is.': 'turks and caicos islands',
+  
+  'pitcairn islands': 'pitcairn islands',
+  'pitcairn is': 'pitcairn islands',
+  'pitcairn is.': 'pitcairn islands',
 };
 
 // Map of country variations to their GeoJSON names
@@ -347,6 +405,15 @@ export const geoJSONNameMap = {
   'eq. guinea': 'Eq. Guinea',
   
   // Add additional aliases as needed.
+  'marshall islands': 'Marshall Is.',
+  'marshallislands': 'Marshall Is.',
+  'marshall is': 'Marshall Is.',
+  'marshall is.': 'Marshall Is.',
+  
+  'solomon islands': 'Solomon Is.',
+  'solomonislands': 'Solomon Is.',
+  'solomon is': 'Solomon Is.',
+  'solomon is.': 'Solomon Is.',
 };
 
 // Add an alias mapping to handle variations in country naming.
@@ -399,6 +466,20 @@ export const normalizeCountryName = (name) => {
     return "bosniaandherzegovina";
   }
 
+  // Handle island abbreviations
+  if (normalized.includes("islands") || normalized.includes("is.") || normalized.endsWith(" is")) {
+    // Convert "islands", "is.", and " is" to a consistent form
+    normalized = normalized.replace(/\bis\b|\bis\.$|islands/g, "islands");
+  }
+
+  // Handle island nations specifically to prevent duplicate points
+  if (normalized.includes("Marshall") || normalized.toLowerCase().includes("marshall")) {
+    return "marshallislands";
+  }
+  if (normalized.includes("Solomon") || normalized.toLowerCase().includes("solomon")) {
+    return "solomonislands";
+  }
+
   // Define aliases to map commonly used variants to a canonical name
   const aliases = {
     'us': 'unitedstatesofamerica',
@@ -440,13 +521,32 @@ export const normalizeCountryName = (name) => {
     'czechrepublic': 'czechrepublic',
     'czechia': 'czechrepublic',
     'czech': 'czechrepublic',
-    // --- Add these new entries to support Bosnia ---
+    // --- Existing aliases for Bosnia (unchanged) ---
     'bosnia': 'bosniaandherzegovina',
     'herzegovina': 'bosniaandherzegovina',
     'bosniaherzegovina': 'bosniaandherzegovina',
     'bosniaherz': 'bosniaandherzegovina',
     'bosniaandherz': 'bosniaandherzegovina',
-    // ... other aliases as needed
+    // --- NEW ENTRIES to restore St. Vincent and Antigua ---
+    'stvincent': 'saintvincentandthegrenadines',
+    'saintvincent': 'saintvincentandthegrenadines',
+    'antigua': 'antiguaandbarbuda',
+    'antiguaandbarbuda': 'antiguaandbarbuda',
+    'barbuda': 'antiguaandbarbuda',
+    // Island nations - ensure consistent normalization
+    'marshallislands': 'marshallislands',
+    'marshallis': 'marshallislands',
+    'marshallisles': 'marshallislands',
+    'marshall islands': 'marshallislands',
+    'marshall is': 'marshallislands',
+    'marshall is.': 'marshallislands',
+    
+    'solomonislands': 'solomonislands',
+    'solomonis': 'solomonislands',
+    'solomonisles': 'solomonislands',
+    'solomon islands': 'solomonislands',
+    'solomon is': 'solomonislands',
+    'solomon is.': 'solomonislands',
   };
 
   // After all the normalization steps, check if we need to map to a GeoJSON name

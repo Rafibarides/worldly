@@ -157,6 +157,10 @@ export default function GameSummaryScreen() {
       // If we're only missing 1-2 countries in Europe, it's likely the problematic ones
       console.log(`[Europe] Adjusting percentage from ${percentage} to 100 as we're close enough`);
       continentPercentages[continent] = 100;
+    } else if (continent === "North America" && guessedCount >= total - 1) {
+      // If we're only missing 1 country in North America, consider it complete
+      console.log(`[North America] Adjusting percentage from ${percentage} to 100 as we're close enough`);
+      continentPercentages[continent] = 100;
     } else {
       continentPercentages[continent] = isNaN(percentage) ? 0 : percentage;
     }

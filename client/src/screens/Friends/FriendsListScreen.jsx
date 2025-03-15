@@ -26,6 +26,8 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { database } from "../../services/firebase";
 import { useFocusEffect } from "@react-navigation/native";
+import CachedImage from '../../components/CachedImage';
+import * as FileSystem from 'expo-file-system';
 
 export default function FriendsListScreen({ navigation }) {
   const { currentUser } = useAuth();
@@ -96,9 +98,24 @@ export default function FriendsListScreen({ navigation }) {
       // Then preload images in the background
       if (fetchedFriends.length > 0) {
         Promise.all(
-          fetchedFriends.map(friend => 
-            friend.avatarUrl ? Image.prefetch(friend.avatarUrl) : Promise.resolve()
-          )
+          fetchedFriends.map(friend => {
+            if (friend.avatarUrl) {
+              // Create a unique filename for caching
+              const filename = friend.avatarUrl.split('/').pop();
+              const cacheFilePath = `${FileSystem.cacheDirectory}${filename}`;
+              
+              // Check if already cached
+              return FileSystem.getInfoAsync(cacheFilePath)
+                .then(fileInfo => {
+                  if (!fileInfo.exists) {
+                    // Download if not cached
+                    return FileSystem.downloadAsync(friend.avatarUrl, cacheFilePath);
+                  }
+                  return Promise.resolve();
+                });
+            }
+            return Promise.resolve();
+          })
         ).catch(err => {
           // Silently handle prefetch errors
           console.warn("Error prefetching friend avatars:", err);
@@ -291,7 +308,7 @@ export default function FriendsListScreen({ navigation }) {
             <View style={styles.friendItem}>
               <View style={styles.userInfo}>
                 <TouchableOpacity onPress={() => handleViewProfile(item)}>
-                  <Image
+                  <CachedImage
                     style={styles.avatar}
                     source={{
                       uri:

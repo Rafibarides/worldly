@@ -81,7 +81,7 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 // Updated game duration in seconds: 30 seconds per game
-const GAME_DURATION = 660;
+const GAME_DURATION = 900;
 
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, challengeId, gameId } = route.params;

@@ -9,11 +9,17 @@ import {
   FlatList,
   Image,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where, limit } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialIcons } from "@expo/vector-icons";
+import Toast from 'react-native-toast-message';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, FadeIn } from 'react-native-reanimated';
+import CachedImage from '../../components/CachedImage';
+import * as FileSystem from 'expo-file-system';
 
 export default function FriendSearchScreen() {
   const { currentUser } = useAuth();
@@ -26,6 +32,9 @@ export default function FriendSearchScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [prefetched, setPrefetched] = useState(false);
+  const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
+  const [topPlayers, setTopPlayers] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   useEffect(() => {
     fetchRecentUsers();
@@ -56,9 +65,24 @@ export default function FriendSearchScreen() {
         
         // Preload avatar images in the background
         Promise.all(
-          users.map(user => 
-            user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
-          )
+          users.map(user => {
+            if (user.avatarUrl) {
+              // Create a unique filename for caching
+              const filename = user.avatarUrl.split('/').pop();
+              const cacheFilePath = `${FileSystem.cacheDirectory}${filename}`;
+              
+              // Check if already cached
+              return FileSystem.getInfoAsync(cacheFilePath)
+                .then(fileInfo => {
+                  if (!fileInfo.exists) {
+                    // Download if not cached
+                    return FileSystem.downloadAsync(user.avatarUrl, cacheFilePath);
+                  }
+                  return Promise.resolve();
+                });
+            }
+            return Promise.resolve();
+          })
         ).catch(err => {
           console.warn("Error prefetching user avatars:", err);
         });
@@ -110,6 +134,7 @@ export default function FriendSearchScreen() {
   const handleViewProfile = (user) => {
     const status = friendshipStatuses[user.uid];
     const hideChallenge = status !== "confirmed";
+    setLeaderboardModalVisible(false);
     navigation.navigate('Profile', { profileUser: user, hideChallenge });
   };
 
@@ -205,17 +230,118 @@ export default function FriendSearchScreen() {
     setRefreshing(false);
   };
 
+  const fetchTopPlayers = async () => {
+    setLoadingLeaderboard(true);
+    try {
+      const usersRef = collection(database, "users");
+      const q = query(
+        usersRef,
+        orderBy("stats.gamesPlayed", "desc"),
+        limit(3)
+      );
+      const querySnapshot = await getDocs(q);
+      const players = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        players.push(data);
+      });
+      setTopPlayers(players);
+    } catch (err) {
+      console.error("Error fetching top players:", err);
+      Toast.show({
+        type: 'error',
+        text1: 'Error loading leaderboard',
+        position: 'bottom'
+      });
+    }
+    setLoadingLeaderboard(false);
+  };
+
+  const LeaderboardPill = ({ player, index, handleViewProfile }) => {
+    // Determine medal image source based on index
+    let medalSource;
+    if (index === 0) medalSource = require('../../../assets/images/gold.png');
+    else if (index === 1) medalSource = require('../../../assets/images/silver.png');
+    else medalSource = require('../../../assets/images/bronze.png');
+
+    // For the top player, set up a continuous "breathing" animation
+    const breath = useSharedValue(1);
+    if (index === 0) {
+      // Start a repeating scale animation (pulsing effect)
+      React.useEffect(() => {
+        breath.value = withRepeat(
+          withTiming(1.05, { duration: 1000 }),
+          -1,
+          true
+        );
+      }, []);
+    }
+    const animatedStyle = useAnimatedStyle(() => {
+      return index === 0 ? { transform: [{ scale: breath.value }] } : {};
+    });
+
+    // Stagger the entrance of each pill using a delay based on the index
+    const animationDelay = index * 100;
+
+    return (
+      <Animated.View
+        entering={FadeIn.delay(animationDelay).duration(300)}
+        style={[styles.leaderboardItem, index === 0 && styles.topPlayerItem, animatedStyle]}
+      >
+        {index === 0 && (
+          <View style={styles.topPlayerBadge}>
+            <MaterialIcons name="star" size={12} color="#fff" />
+            <Text style={styles.topPlayerText}>Top Player</Text>
+          </View>
+        )}
+        <Image source={medalSource} style={styles.medalIcon} />
+        <View style={styles.leaderboardPlayerInfo}>
+          <CachedImage 
+            source={{ uri: player.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }} 
+            style={styles.leaderboardAvatar} 
+          />
+          <View style={styles.leaderboardPlayerDetails}>
+            <TouchableOpacity onPress={() => handleViewProfile(player)}>
+              <Text style={styles.leaderboardPlayerName}>{player.username}</Text>
+            </TouchableOpacity>
+            <Text style={styles.leaderboardPlayerStats}>
+              <Text style={styles.levelBold}>Level {player.level || 1}</Text>
+              <Text> • {player.stats?.gamesPlayed || 0} games</Text>
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Search..."
-        value={searchTerm}
-        onChangeText={(text) => {
-          setSearchTerm(text);
-          handleSearch(text);
-        }}
-      />
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Search for friends..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          onSubmitEditing={handleSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity 
+          style={{marginLeft: 10}}
+          onPress={() => {
+            fetchTopPlayers();
+            setLeaderboardModalVisible(true);
+          }}
+        >
+          <Image 
+            source={require('../../../assets/images/leaderboard.png')} 
+            style={{
+              width: 35, 
+              height: 35,
+              resizeMode: 'contain'
+            }}
+          />
+        </TouchableOpacity>
+      </View>
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
       <FlatList
         data={searchTerm.trim() ? results : recentUsers}
@@ -240,12 +366,10 @@ export default function FriendSearchScreen() {
           return (
             <View style={styles.resultItem}>
               <View style={styles.userInfo}>
-                <TouchableOpacity onPress={() => handleViewProfile(item)}>
-                  <Image
-                    style={styles.avatar}
-                    source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
-                  />
-                </TouchableOpacity>
+                <CachedImage
+                  style={styles.avatar}
+                  source={{ uri: item.avatarUrl || 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }}
+                />
                 <TouchableOpacity 
                   style={{ flex: 1 }}
                   onPress={() => handleViewProfile(item)}
@@ -279,6 +403,48 @@ export default function FriendSearchScreen() {
         )}
         removeClippedSubviews={true}
       />
+      <Modal
+        visible={leaderboardModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLeaderboardModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLeaderboardModalVisible(false)}
+        >
+          <View style={styles.leaderboardModalContent}>
+            <Text style={styles.leaderboardModalTitle}>Top Players</Text>
+            
+            {loadingLeaderboard ? (
+              <ActivityIndicator size="large" color="#fff" style={{marginVertical: 20}} />
+            ) : (
+              <View style={styles.leaderboardList}>
+                {topPlayers.map((player, index) => (
+                  <LeaderboardPill
+                    key={player.uid}
+                    player={player}
+                    index={index}
+                    handleViewProfile={handleViewProfile}
+                  />
+                ))}
+                
+                {topPlayers.length === 0 && !loadingLeaderboard && (
+                  <Text style={styles.noPlayersText}>No players found</Text>
+                )}
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setLeaderboardModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -300,8 +466,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     paddingHorizontal: 19,
     paddingVertical: 16,
-    marginBottom: 16,
     borderWidth: 0,
+    flex: 1,
   },
   errorText: {
     color: 'red',
@@ -359,5 +525,128 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     marginTop: 10,
     paddingHorizontal: 5,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaderboardModalContent: {
+    width: '85%',
+    backgroundColor: '#87c66b',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  leaderboardModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 20,
+  },
+  leaderboardList: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 15,
+    padding: 12,
+    marginBottom: 10,
+  },
+  medalIcon: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  leaderboardPlayerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  leaderboardAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    borderColor: '#fff',
+  },
+  leaderboardPlayerDetails: {
+    flex: 1,
+    width: '100%',
+  },
+  leaderboardPlayerName: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  leaderboardPlayerStats: {
+    color: '#fff',
+    fontSize: 14,
+    opacity: 0.9,
+  },
+  levelBold: {
+    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: 14,
+  },
+  noPlayersText: {
+    color: '#fff',
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
+  },
+  closeModalButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+  },
+  closeModalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  topPlayerItem: {
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  topPlayerBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 10,
+    backgroundColor: '#ffc268',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  topPlayerText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 2,
   },
 }); 
