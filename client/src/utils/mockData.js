@@ -119,14 +119,14 @@ export const mockBadges = [
     id: "worldExplorer",
     name: "World Master",
     description: "Guess 100 different countries correctly",
-    icon: require('../../assets/images/australia_badge.png'),
+    icon: require('../../assets/images/badges/australia.png'),
     requirement: 100,
   },
   {
     id: "speedDemon",
     name: "Speed Demon",
     description: "Win a game in under 60 seconds",
-    icon: require('../../assets/images/australia_badge.png'),
+    icon: require('../../assets/images/badges/australia.png'),
     requirement: 60,
   },
   {

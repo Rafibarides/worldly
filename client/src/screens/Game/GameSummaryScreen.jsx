@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Image, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Image, BackHandler, Modal, FlatList } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Animated, { 
   useAnimatedStyle, 
@@ -284,7 +284,7 @@ export default function GameSummaryScreen() {
   const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   // AnimatedCard component for the continent cards.
-  const AnimatedCard = ({ children, delay, isHighest, index, totalCards }) => {
+  const AnimatedCard = ({ children, delay, isHighest, index, totalCards, onPress }) => {
     const cardOpacity = useSharedValue(0);
     const cardPressScale = useSharedValue(1);
     const starsScale = useSharedValue(0);
@@ -347,6 +347,7 @@ export default function GameSummaryScreen() {
             withTiming(1, { duration: 100 })
           );
         }}
+        onPress={onPress}
       >
         <Animated.View style={[
           styles.card,
@@ -615,6 +616,164 @@ export default function GameSummaryScreen() {
     markChallengeCompleted();
   }, [gameId, gameType]); // Only run once when component mounts and when these values are available
 
+  // Add state variables for the modals
+  const [modalVisible, setModalVisible] = useState(false);
+  const [continentModalVisible, setContinentModalVisible] = useState(false);
+  const [selectedContinent, setSelectedContinent] = useState(null);
+  const [missedCountriesByContinent, setMissedCountriesByContinent] = useState({});
+
+  // Add this mapping object near your state declarations
+  const continentBadgeIcons = {
+    Africa: require('../../../assets/images/badges/africa.png'),
+    Asia: require('../../../assets/images/badges/asia.png'),
+    Europe: require('../../../assets/images/badges/europe.png'),
+    "North America": require('../../../assets/images/badges/north-america.png'),
+    "South America": require('../../../assets/images/badges/south-america.png'),
+    Oceania: require('../../../assets/images/badges/australia.png'),
+  };
+
+  // Add this effect to calculate missed countries
+  useEffect(() => {
+    // Calculate missed countries by continent
+    const missed = {};
+    Object.keys(countriesByContinent).forEach(continent => {
+      const countryList = countriesByContinent[continent] || [];
+      const continentCanonical = countryList.map(country =>
+        normalizeCountryName(country)
+      );
+      
+      // Find countries that were not guessed
+      const guessedNormalized = guessedCountries.map(country => 
+        normalizeCountryName(country)
+      );
+      
+      const missedFromContinent = continentCanonical.filter(
+        country => !guessedNormalized.includes(country)
+      );
+      
+      // Map back to original names for display
+      const missedOriginalNames = missedFromContinent.map(normName => {
+        // Find the original name in the continent list
+        const originalName = countryList.find(
+          origName => normalizeCountryName(origName) === normName
+        );
+        return originalName || normName; // Fallback to normalized name if not found
+      });
+      
+      missed[continent] = missedOriginalNames;
+    });
+    
+    setMissedCountriesByContinent(missed);
+  }, [guessedCountries]);
+
+  // Handler for opening continent-specific modal
+  const handleContinentPress = (continent) => {
+    setSelectedContinent(continent);
+    setContinentModalVisible(true);
+  };
+
+  // Function to render missed countries list
+  const renderMissedCountriesList = (continent = null) => {
+    // First, check if user got a perfect score
+    if (finalScore === totalCountries) {
+      // If showing a specific continent and user got all countries
+      if (continent) {
+        return (
+          <View style={styles.greatJobContainer}>
+            <Image 
+              source={require('../../../assets/images/stars.png')}
+              style={styles.greatJobIcon}
+            />
+            <Text style={styles.greatJobText}>Great Job!</Text>
+            <Text style={styles.greatJobSubtext}>
+              You correctly identified all countries in {continent}!
+            </Text>
+          </View>
+        );
+      } else {
+        // For the global list, we won't reach this since the button is hidden
+        return (
+          <View style={styles.greatJobContainer}>
+            <Image 
+              source={require('../../../assets/images/stars.png')}
+              style={styles.greatJobIcon}
+            />
+            <Text style={styles.greatJobText}>Perfect Score!</Text>
+            <Text style={styles.greatJobSubtext}>
+              You correctly identified all 196 countries!
+            </Text>
+          </View>
+        );
+      }
+    }
+    
+    // Original code for showing missed countries when not perfect
+    if (continent) {
+      // For a specific continent, number sequentially (starting fresh)
+      const countries = (missedCountriesByContinent[continent] || []).map((country, index) => {
+        return { isHeader: false, text: country, number: index + 1 };
+      });
+      return (
+        <FlatList
+          data={countries}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => (
+            <Text style={styles.missedCountryItem}>
+              {`${item.number}. ${item.text}`}
+            </Text>
+          )}
+          contentContainerStyle={styles.missedCountriesList}
+        />
+      );
+    } else {
+      // For the global "All Missed Countries" list, group by continent
+      // and number the country entries inclusively.
+      let data = [];
+      let counter = 1;
+      Object.keys(missedCountriesByContinent).forEach(cont => {
+        const continentMissed = missedCountriesByContinent[cont];
+        if (continentMissed && continentMissed.length > 0) {
+          // Add header for this continent (no number)
+          data.push({ isHeader: true, text: cont });
+          // Process each missed country with a global number
+          continentMissed.forEach(country => {
+            data.push({ isHeader: false, text: country, number: counter });
+            counter++;
+          });
+        }
+      });
+      return (
+        <FlatList
+          data={data}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => {
+            if (item.isHeader) {
+              return (
+                <View style={styles.missedHeaderContainer}>
+                  <View style={styles.continentTitlePill}>
+                    <Image 
+                      source={continentBadgeIcons[item.text]}
+                      style={styles.continentBadgeIcon}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.missedCountriesHeader}>{item.text}</Text>
+                  </View>
+                </View>
+              );
+            } else {
+              return (
+                <Text style={styles.missedCountryItem}>
+                  {`${item.number}. ${item.text}`}
+                </Text>
+              );
+            }
+          }}
+          contentContainerStyle={styles.missedCountriesList}
+        />
+      );
+    }
+  };
+
   return (
     <AnimatedLinearGradient 
       colors={['#70ab51', '#7dbc63', '#70ab51']}
@@ -654,12 +813,13 @@ export default function GameSummaryScreen() {
         {/* Cards Container for Continent Breakdown */}
         <View style={styles.cardsContainer}>
           {sortedContinents.map((continent, index) => (
-            <AnimatedCard 
-              key={continent} 
+            <AnimatedCard
+              key={continent}
               delay={index * 100}
               isHighest={index === 0}
               index={index}
               totalCards={sortedContinents.length}
+              onPress={() => handleContinentPress(continent)}
             >
               <Text style={styles.cardTitle}>{continent}</Text>
               <Text style={styles.cardPercentage}>
@@ -694,6 +854,58 @@ export default function GameSummaryScreen() {
             <Text style={styles.buttonText}>Back to Game Selection</Text>
           </View>
         </AnimatedTouchableOpacity>
+        
+        {/* Only show Missed Countries Button if there are missed countries */}
+        {finalScore < totalCountries && (
+          <TouchableOpacity
+            style={styles.missedCountriesButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.missedCountriesButtonText}>Missed Countries</Text>
+          </TouchableOpacity>
+        )}
+        
+        {/* Modal for All Missed Countries */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>All Missed Countries</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={styles.closeButton}>×</Text>
+                </TouchableOpacity>
+              </View>
+              {renderMissedCountriesList()}
+            </View>
+          </View>
+        </Modal>
+        
+        {/* Modal for Continent-Specific Missed Countries */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={continentModalVisible}
+          onRequestClose={() => setContinentModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Missed Countries: {selectedContinent}
+                </Text>
+                <TouchableOpacity onPress={() => setContinentModalVisible(false)}>
+                  <Text style={styles.closeButton}>×</Text>
+                </TouchableOpacity>
+              </View>
+              {selectedContinent && renderMissedCountriesList(selectedContinent)}
+            </View>
+          </View>
+        </Modal>
       </View>
     </AnimatedLinearGradient>
   );
@@ -848,5 +1060,138 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     marginLeft: 5,
+  },
+  // Add these style definitions or update existing ones:
+
+  // For the header container that holds the pill and badge icon
+  missedHeaderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 15,
+    marginBottom: 5,
+    alignSelf: "flex-start",
+  },
+
+  // The pill container for continent titles - changed background color to yellow
+  continentTitlePill: {
+    backgroundColor: "#ffc268", // changed from "#7dbc63" to yellow
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  // The text inside the green pill - add marginLeft for spacing from icon
+  missedCountriesHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+    marginLeft: 5,
+  },
+
+  // For the badge icon inside the pill - change position/margin
+  continentBadgeIcon: {
+    width: 16,
+    height: 16,
+  },
+
+  // Modal close button ("×") using yellow
+  closeButton: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#ffc268", // yellow shade used throughout the game
+  },
+
+  // Update the yellow for the missed countries button
+  missedCountriesButton: {
+    backgroundColor: "#ffc268", // yellow color
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10, // reduced from 20 for less of a pill shape
+    marginVertical: 15,
+    alignSelf: "center",
+  },
+
+  missedCountriesButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    width: "85%",
+    maxHeight: "80%",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    paddingBottom: 10,
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+
+  missedCountriesList: {
+    paddingBottom: 20,
+  },
+
+  missedCountryItem: {
+    fontSize: 14,
+    color: "#555",
+    marginLeft: 10,
+    marginBottom: 5,
+  },
+
+  greatJobContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  greatJobIcon: {
+    width: 60,
+    height: 60,
+    marginBottom: 15,
+  },
+
+  greatJobText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#7dbc63',
+    marginBottom: 10,
+  },
+
+  greatJobSubtext: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 }); 

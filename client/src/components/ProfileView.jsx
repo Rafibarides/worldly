@@ -12,7 +12,6 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
-import { mockBadges } from "../utils/mockData";
 import {
   collection,
   addDoc,
@@ -51,8 +50,66 @@ export default function ProfileView({
         }
       });
     }
+    
     return Array.from(earnedBadges).map((badgeId) => {
-      const badge = mockBadges.find((b) => b.id === badgeId);
+      // Instead of using mockBadges, determine badge details based on badgeId
+      const getBadgeDetails = (id) => {
+        switch(id) {
+          case "Africa":
+            return { 
+              name: "Africa", 
+              icon: require("../../assets/images/badges/africa.png") 
+            };
+          case "South America":
+            return { 
+              name: "South America", 
+              icon: require("../../assets/images/badges/south-america.png") 
+            };
+          case "Oceania":
+            return { 
+              name: "Oceania", 
+              icon: require("../../assets/images/badges/australia.png") 
+            };
+          case "Asia":
+            return { 
+              name: "Asia", 
+              icon: require("../../assets/images/badges/asia.png") 
+            };
+          case "Europe":
+            return { 
+              name: "Europe", 
+              icon: require("../../assets/images/badges/europe.png") 
+            };
+          case "North America":
+            return { 
+              name: "North America", 
+              icon: require("../../assets/images/badges/north-america.png") 
+            };
+          case "worldExplorer":
+            return { 
+              name: "World Master", 
+              icon: require("../../assets/images/badges/australia.png") 
+            };
+          case "speedDemon":
+            return { 
+              name: "Speed Demon", 
+              icon: require("../../assets/images/badges/australia.png") 
+            };
+          case "perfectScore":
+            return { 
+              name: "Perfect Score", 
+              icon: "🎯" 
+            };
+          default:
+            return { 
+              name: id, 
+              icon: require("../../assets/images/badges/australia.png") 
+            };
+        }
+      };
+      
+      const badge = getBadgeDetails(badgeId);
+      
       if (badge) {
         return (
           <TouchableOpacity 

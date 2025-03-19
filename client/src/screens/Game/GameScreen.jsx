@@ -12,7 +12,6 @@ import {
   Modal,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { mockGameSettings } from "../../utils/mockData";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -86,7 +85,7 @@ export default function GameScreen() {
       setIsLoading(false);
       navigation.navigate("GamePlay", {
         gameType: "solo",
-        settings: mockGameSettings.difficultyLevels.medium,
+        settings: defaultGameSettings,
       });
     }, 500);
   };
@@ -465,6 +464,12 @@ export default function GameScreen() {
   const [timeInfoModalVisible, setTimeInfoModalVisible] = useState(false);
   const [pointsInfoModalVisible, setPointsInfoModalVisible] = useState(false);
   const [gameInfoModalVisible, setGameInfoModalVisible] = useState(false);
+
+  const defaultGameSettings = {
+    timeLimit: 120,
+    difficulty: "medium",
+    region: "world"
+  };
 
   if (isLoading) {
     return (

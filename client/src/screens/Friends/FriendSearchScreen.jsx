@@ -11,7 +11,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
-import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where, limit } from 'firebase/firestore';
+import { collection, query, orderBy, startAt, endAt, getDocs, addDoc, where, limit, startAfter } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -35,13 +35,21 @@ export default function FriendSearchScreen() {
   const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
   const [topPlayers, setTopPlayers] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const PAGE_SIZE = 20; // Number of users to fetch per page
 
   useEffect(() => {
     fetchRecentUsers();
+    fetchAllUsers();
   }, []);
 
   const fetchRecentUsers = async () => {
-    setLoading(true);
+    if (!refreshing) {
+      setLoading(true);
+    }
     try {
       const usersRef = collection(database, "users");
       const q = query(
@@ -91,44 +99,59 @@ export default function FriendSearchScreen() {
       console.error("Error fetching recent users:", err);
       setError("Error fetching recent users.");
     }
-    setLoading(false);
+    if (!refreshing) {
+      setLoading(false);
+    }
   };
 
   const fetchFriendshipStatuses = async (friendIds) => {
+    if (!friendIds || friendIds.length === 0) return;
+    
     const friendshipsRef = collection(database, "friendships");
-    const statuses = {};
+    const statuses = { ...friendshipStatuses }; // Start with existing statuses
     
-    // Process friendIds in chunks of 30 to avoid the query limit
-    const chunkSize = 30;
-    for (let i = 0; i < friendIds.length; i += chunkSize) {
-      const chunk = friendIds.slice(i, i + chunkSize);
+    try {
+      // Process friendIds in chunks of 10 to avoid Firestore query limitations
+      const chunkSize = 10;
+      for (let i = 0; i < friendIds.length; i += chunkSize) {
+        const chunk = friendIds.slice(i, i + chunkSize);
+        
+        // Query for friendships where current user is the requester
+        const qSent = query(
+          friendshipsRef,
+          where("requesterId", "==", currentUser.uid),
+          where("requesteeId", "in", chunk)
+        );
+        
+        // Query for friendships where current user is the requestee
+        const qReceived = query(
+          friendshipsRef,
+          where("requesteeId", "==", currentUser.uid),
+          where("requesterId", "in", chunk)
+        );
+        
+        const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
+        
+        // Process sent requests
+        snapshotSent.forEach(docSnap => {
+          const data = docSnap.data();
+          statuses[data.requesteeId] = data.status;
+          console.log(`Set status for ${data.requesteeId} to ${data.status} (sent)`);
+        });
+        
+        // Process received requests
+        snapshotReceived.forEach(docSnap => {
+          const data = docSnap.data();
+          statuses[data.requesterId] = data.status;
+          console.log(`Set status for ${data.requesterId} to ${data.status} (received)`);
+        });
+      }
       
-      const qSent = query(
-        friendshipsRef,
-        where("status", "in", ["pending", "confirmed"]),
-        where("requesterId", "==", currentUser.uid),
-        where("requesteeId", "in", chunk)
-      );
-      const qReceived = query(
-        friendshipsRef,
-        where("status", "in", ["pending", "confirmed"]),
-        where("requesteeId", "==", currentUser.uid),
-        where("requesterId", "in", chunk)
-      );
-      
-      const [snapshotSent, snapshotReceived] = await Promise.all([getDocs(qSent), getDocs(qReceived)]);
-      
-      snapshotSent.forEach(docSnap => {
-        const data = docSnap.data();
-        statuses[data.requesteeId] = data.status;
-      });
-      snapshotReceived.forEach(docSnap => {
-        const data = docSnap.data();
-        statuses[data.requesterId] = data.status;
-      });
+      console.log("Updated friendship statuses:", statuses);
+      setFriendshipStatuses(statuses);
+    } catch (error) {
+      console.error("Error fetching friendship statuses:", error);
     }
-    
-    setFriendshipStatuses(statuses);
   };
 
   const handleViewProfile = (user) => {
@@ -138,72 +161,123 @@ export default function FriendSearchScreen() {
     navigation.navigate('Profile', { profileUser: user, hideChallenge });
   };
 
-  const handleSearch = async (term) => {
-    if (!term.trim()) {
-      setResults([]);
-      await fetchRecentUsers();
-      return;
+  const fetchAllUsers = async (reset = true) => {
+    if (reset && !refreshing) {
+      setLoading(true);
+      setLastVisible(null);
+    } else if (!reset) {
+      setIsLoadingMore(true);
     }
     
-    setRecentUsers([]);
-    setLoading(true);
-    setError(null);
-    
     try {
-      const searchTermLower = term.trim().toLowerCase();
       const usersRef = collection(database, "users");
-      const q = query(usersRef, orderBy("username"));
-      const querySnapshot = await getDocs(q);
-      const users = [];
+      let q;
       
-      // Process all users at once
+      if (reset || !lastVisible) {
+        // First page query - simple, no complex conditions
+        q = query(
+          usersRef,
+          orderBy("username"),
+          limit(PAGE_SIZE)
+        );
+      } else {
+        // Subsequent pages query with startAfter
+        q = query(
+          usersRef,
+          orderBy("username"),
+          startAfter(lastVisible),
+          limit(PAGE_SIZE)
+        );
+      }
+      
+      const querySnapshot = await getDocs(q);
+      
+      // No users found
+      if (querySnapshot.empty) {
+        setHasMoreUsers(false);
+        if (reset) {
+          setAllUsers([]);
+          setLoading(false);
+        } else {
+          setIsLoadingMore(false);
+        }
+        return;
+      }
+      
+      const users = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (
-          data.uid !== currentUser.uid &&
-          data.username &&
-          data.username.toLowerCase().includes(searchTermLower)
-        ) {
+        if (data.uid !== currentUser.uid && data.username) {
           users.push(data);
         }
       });
       
-      // Sort results
-      users.sort((a, b) => {
-        const aUsername = a.username.toLowerCase();
-        const bUsername = b.username.toLowerCase();
-        const startsA = aUsername.startsWith(searchTermLower);
-        const startsB = bUsername.startsWith(searchTermLower);
-        if (startsA && !startsB) return -1;
-        if (!startsA && startsB) return 1;
-        return aUsername.localeCompare(bUsername);
-      });
+      // Update the last visible document for pagination
+      const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+      setLastVisible(lastDoc);
       
-      // Set results first so UI can render
-      setResults(users);
+      // Check if we have more users to load
+      setHasMoreUsers(querySnapshot.docs.length === PAGE_SIZE);
       
-      if (users.length > 0) {
-        // Start prefetching images immediately
-        const prefetchPromises = users.map(user => 
-          user.avatarUrl ? Image.prefetch(user.avatarUrl) : Promise.resolve()
-        );
-        
-        // Fetch friendship statuses in parallel with image prefetching
-        const friendIds = users.map(u => u.uid);
-        const [_] = await Promise.all([
-          fetchFriendshipStatuses(friendIds),
-          Promise.all(prefetchPromises).catch(err => {
-            console.warn("Error prefetching search result avatars:", err);
-          })
-        ]);
+      if (reset) {
+        setAllUsers(users);
       } else {
-        setFriendshipStatuses({});
+        setAllUsers(prevUsers => [...prevUsers, ...users]);
+      }
+      
+      // Fetch friendship statuses for the loaded users in smaller batches
+      if (users.length > 0) {
+        const userIds = users.map(u => u.uid);
+        await fetchFriendshipStatuses(userIds);
+        
+        // Prefetch avatars in the background
+        users.forEach(user => {
+          if (user.avatarUrl) {
+            Image.prefetch(user.avatarUrl).catch(() => {});
+          }
+        });
       }
     } catch (err) {
-      console.error("Error searching users: ", err);
+      console.error("Error fetching users:", err);
+      setError("Error fetching users.");
     }
     
-    setLoading(false);
+    if (reset && !refreshing) {
+      setLoading(false);
+    } else if (!reset) {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleSearch = (term) => {
+    // Ensure term is a string before setting it
+    const safeSearchTerm = term || '';
+    setSearchTerm(safeSearchTerm);
+    
+    if (!safeSearchTerm.trim()) {
+      setResults([]);
+      return;
+    }
+    
+    const searchTermLower = safeSearchTerm.trim().toLowerCase();
+    
+    // Filter users from our cached allUsers array
+    const filteredUsers = allUsers.filter(user => 
+      user.username && user.username.toLowerCase().includes(searchTermLower)
+    );
+    
+    // Sort results
+    filteredUsers.sort((a, b) => {
+      const aUsername = a.username.toLowerCase();
+      const bUsername = b.username.toLowerCase();
+      const startsA = aUsername.startsWith(searchTermLower);
+      const startsB = bUsername.startsWith(searchTermLower);
+      if (startsA && !startsB) return -1;
+      if (!startsA && startsB) return 1;
+      return aUsername.localeCompare(bUsername);
+    });
+    
+    setResults(filteredUsers);
   };
 
   const handleAddFriend = async (friend) => {
@@ -222,11 +296,10 @@ export default function FriendSearchScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (searchTerm.trim()) {
-      await handleSearch(searchTerm);
-    } else {
-      await fetchRecentUsers();
-    }
+    await Promise.all([
+      fetchRecentUsers(),
+      fetchAllUsers(true)
+    ]);
     setRefreshing(false);
   };
 
@@ -320,9 +393,9 @@ export default function FriendSearchScreen() {
         <TextInput
           style={styles.input}
           placeholder="Search for friends..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          onSubmitEditing={handleSearch}
+          value={searchTerm || ''}
+          onChangeText={(text) => handleSearch(text)}
+          onSubmitEditing={() => handleSearch(searchTerm)}
           returnKeyType="search"
         />
         <TouchableOpacity 
@@ -344,7 +417,11 @@ export default function FriendSearchScreen() {
       </View>
       {loading && <ActivityIndicator size="large" color="#0000ff" />}
       <FlatList
-        data={searchTerm.trim() ? results : recentUsers}
+        data={searchTerm && searchTerm.trim() 
+          ? results 
+          : recentUsers.length > 0 && !searchTerm 
+            ? recentUsers 
+            : allUsers}
         keyExtractor={(item) => item.uid}
         extraData={friendshipStatuses}
         refreshControl={
@@ -354,15 +431,23 @@ export default function FriendSearchScreen() {
             tintColor="transparent"
             colors={["transparent"]}
             progressBackgroundColor="transparent"
-            progressViewOffset={0}
           />
         }
-        ListHeaderComponent={!searchTerm.trim() && recentUsers.length > 0 ? (
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={!searchTerm && recentUsers.length > 0 ? (
           <Text style={styles.sectionHeader}>Recently Joined</Text>
         ) : null}
-        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          !loading && (
+            <Text style={styles.emptyText}>
+              {error || "No users found"}
+            </Text>
+          )
+        }
         renderItem={({ item }) => {
           const status = friendshipStatuses[item.uid];
+          console.log(`Rendering ${item.username} with status: ${status}`);
+          
           return (
             <View style={styles.resultItem}>
               <View style={styles.userInfo}>
@@ -377,7 +462,19 @@ export default function FriendSearchScreen() {
                   <Text style={styles.username}>{item.username}</Text>
                 </TouchableOpacity>
               </View>
-              { !status && (
+              
+              {status === "confirmed" ? (
+                // Already friends - show nothing or a "Friends" label with opacity 0
+                <View style={styles.statusContainer}>
+                  <Text style={[styles.statusText, { opacity: 0 }]}>Friends</Text>
+                </View>
+              ) : status === "pending" ? (
+                // Friend request pending
+                <View style={styles.statusContainer}>
+                  <Text style={styles.statusText}>Requested</Text>
+                </View>
+              ) : (
+                // Not friends - show Add Friend button
                 <TouchableOpacity 
                   style={styles.addButton} 
                   onPress={() => handleAddFriend(item)}
@@ -385,23 +482,22 @@ export default function FriendSearchScreen() {
                   <Text style={styles.addButtonText}>Add Friend</Text>
                 </TouchableOpacity>
               )}
-              { status === "pending" && (
-                <View style={styles.statusContainer}>
-                  <Text style={styles.statusText}>Requested</Text>
-                </View>
-              )}
             </View>
           );
         }}
-        initialNumToRender={Math.max(
-          searchTerm.trim() ? results.length : recentUsers.length,
-          1
-        )}
-        windowSize={Math.max(
-          searchTerm.trim() ? results.length : recentUsers.length,
-          1
-        )}
-        removeClippedSubviews={true}
+        onEndReached={() => {
+          if (!isLoadingMore && hasMoreUsers && (!searchTerm || !searchTerm.trim())) {
+            fetchAllUsers(false);
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.loadingMoreContainer}>
+              <ActivityIndicator size="small" color="#87c66b" />
+            </View>
+          ) : null
+        }
       />
       <Modal
         visible={leaderboardModalVisible}
@@ -648,5 +744,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 2,
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#aaa',
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
   },
 }); 

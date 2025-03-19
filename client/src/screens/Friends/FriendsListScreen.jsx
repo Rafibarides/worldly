@@ -179,7 +179,8 @@ export default function FriendsListScreen({ navigation }) {
 
   // Filter friends using a case insensitive search
   const filteredFriends = friends.filter((friend) => {
-    return friend.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery || '';
+    return friend.username && friend.username.toLowerCase().includes(query.toLowerCase());
   });
 
   // Add an onRefresh function that uses the refreshing state:
@@ -277,8 +278,8 @@ export default function FriendsListScreen({ navigation }) {
         <TextInput
           style={styles.searchInput}
           placeholder="Search friends..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={searchQuery || ''}
+          onChangeText={(text) => setSearchQuery(text || '')}
         />
         <TouchableOpacity
           style={styles.notificationButton}

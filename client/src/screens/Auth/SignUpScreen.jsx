@@ -13,6 +13,7 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
+import { generateAndUploadAvatar } from '../../services/avatarService';
 
 export default function SignUpScreen({ navigation }) {
   const { setCurrentUser } = useAuth();
@@ -195,9 +196,8 @@ export default function SignUpScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Generate a random seed for the avatar using Dicebear
-      const seed = Math.random().toString(36).substring(2, 8);
-      const avatarUrl = `https://api.dicebear.com/9.x/avataaars/png?seed=${seed}`;
+      // Generate and upload avatar to Firebase storage (as JPG)
+      const avatarUrl = await generateAndUploadAvatar(user.uid);
 
       // Include the lower-case username in the user data
       const currData = {
@@ -207,7 +207,7 @@ export default function SignUpScreen({ navigation }) {
         friends: [],
         level: 1,
         stats: { gamesPlayed: 0, gamesWon: 0 },
-        avatarUrl, // use the generated Dicebear avatar URL
+        avatarUrl, // Use the JPG avatar URL from Firebase storage
         uid: user.uid,
         createdAt: Date.now(),
       };

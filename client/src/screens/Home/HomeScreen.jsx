@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useAuth } from '../../contexts/AuthContext';

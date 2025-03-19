@@ -1,29 +1,41 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { mockUsers, mockBadges } from '../../utils/mockData';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import Badge from '../../components/Badge/Badge';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function BadgesListScreen() {
   const navigation = useNavigation();
-  const currentUser = mockUsers[0];
+  const { currentUser } = useAuth();
+
+  // Define a static list of the 6 continent badges for display
+  const staticBadges = [
+    { id: "Africa", name: "Africa", description: "Complete all countries in Africa", type: "Africa" },
+    { id: "South America", name: "South America", description: "Complete all countries in South America", type: "South America" },
+    { id: "Oceania", name: "Oceania", description: "Complete all countries in Oceania", type: "Oceania" },
+    { id: "Asia", name: "Asia", description: "Complete all countries in Asia", type: "Asia" },
+    { id: "Europe", name: "Europe", description: "Complete all countries in Europe", type: "Europe" },
+    { id: "North America", name: "North America", description: "Complete all countries in North America", type: "North America" },
+  ];
+
+  // Set the badges state with the static array
+  const [badges] = useState(staticBadges);
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
   const [selectedBadgeId, setSelectedBadgeId] = useState(null);
-
+  
   const renderBadges = () => {
-    return currentUser.badges.map((badgeId) => {
-      const badge = mockBadges.find(b => b.id === badgeId);
+    return badges.map((badge) => {
       return (
         <TouchableOpacity 
-          key={badgeId} 
+          key={badge.id} 
           style={styles.badgeRow}
           onPress={() => {
-            setSelectedBadgeId(badgeId);
+            setSelectedBadgeId(badge.id);
             setBadgeModalVisible(true);
           }}
         >
@@ -34,7 +46,7 @@ export default function BadgesListScreen() {
           />
           <View style={styles.badgeIconContainer}>
             <Image 
-              source={badge.icon}
+              source={getBadgeIcon(badge.type || badge.id)}
               style={styles.badgeIcon}
               resizeMode="contain"
             />
@@ -46,6 +58,29 @@ export default function BadgesListScreen() {
         </TouchableOpacity>
       );
     });
+  };
+  
+  const getBadgeIcon = (badgeType) => {
+    switch(badgeType) {
+      case "Africa":
+        return require('../../../assets/images/badges/africa.png');
+      case "South America":
+        return require('../../../assets/images/badges/south-america.png');
+      case "Oceania":
+        return require('../../../assets/images/badges/australia.png');
+      case "Asia":
+        return require('../../../assets/images/badges/asia.png');
+      case "Europe":
+        return require('../../../assets/images/badges/europe.png');
+      case "North America":
+        return require('../../../assets/images/badges/north-america.png');
+      case "worldExplorer":
+      case "speedDemon":
+        return require('../../../assets/images/badges/australia.png');
+      case "perfectScore":
+      default:
+        return require('../../../assets/images/badges/australia.png');
+    }
   };
 
   return (

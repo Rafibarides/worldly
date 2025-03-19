@@ -11,6 +11,7 @@ import {
   Modal,
   Image,
   TouchableWithoutFeedback,
+  FlatList,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -81,7 +82,7 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 // Updated game duration in seconds: 30 seconds per game
-const GAME_DURATION = 900;
+const GAME_DURATION = 1200;
 
 export default function GamePlayScreen({ route, navigation }) {
   const { gameType, challengeId, gameId } = route.params;
@@ -969,10 +970,10 @@ export default function GamePlayScreen({ route, navigation }) {
                       selectedPlayer?.isCur 
                         ? currentUser?.avatarUrl 
                           ? { uri: currentUser.avatarUrl } 
-                          : require('../../../assets/images/default-avatar.png')
+                          : { uri: 'https://api.dicebear.com/9.x/avataaars/png?seed=default' }
                         : gameData?.opponentAvatarUrl 
                           ? { uri: gameData.opponentAvatarUrl } 
-                          : require('../../../assets/images/default-avatar.png')
+                          : { uri: 'https://api.dicebear.com/9.x/avataaars/png?seed=opponent' }
                     } 
                     style={styles.profilePhoto} 
                   />
@@ -1159,5 +1160,38 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  // Modal header "X" (close button) updated to use game-yellow (#ffc268)
+  closeButton: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#ffc268", // yellow shade used throughout the game
+  },
+  // For global missed countries header, we wrap the continent title in a green pill
+  missedHeaderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 15,
+    marginBottom: 5,
+    alignSelf: "flex-start",
+  },
+  // The pill container for continent titles
+  continentTitlePill: {
+    backgroundColor: "#7dbc63", // green shade used in our game
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  // The text inside the green pill (white and bold)
+  missedCountriesHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  // For the badge icon next to the header (if needed)
+  continentBadgeIcon: {
+    width: 20,
+    height: 20,
+    marginLeft: 5,
   },
 });

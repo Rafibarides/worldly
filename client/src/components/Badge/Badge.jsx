@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Dimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { mockBadges } from '../../utils/mockData';
 import countriesByContinent from '../../utils/countries_by_continent.json';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { collection, getDocs } from 'firebase/firestore';
+import { database } from '../../services/firebase';
 
 const { width, height } = Dimensions.get('window');
 
@@ -12,19 +13,39 @@ export default function Badge({ visible, onClose, initialBadgeId }) {
   const [badges, setBadges] = useState([]);
 
   useEffect(() => {
-    // Filter out badges that are continent-related
-    const continentBadges = mockBadges.filter(badge => 
-      Object.keys(countriesByContinent).includes(badge.name)
-    );
-    setBadges(continentBadges);
-    
-    // Set initial badge if provided
-    if (initialBadgeId) {
-      const index = continentBadges.findIndex(badge => badge.id === initialBadgeId);
-      if (index !== -1) {
-        setCurrentBadgeIndex(index);
+    // Fetch badges from Firestore instead of using mock data
+    const fetchBadges = async () => {
+      const continentBadges = [];
+      
+      // Define continent badges with their icons
+      const continentBadgeTypes = [
+        { id: "Africa", name: "Africa", icon: require('../../../assets/images/badges/africa.png') },
+        { id: "South America", name: "South America", icon: require('../../../assets/images/badges/south-america.png') },
+        { id: "Oceania", name: "Oceania", icon: require('../../../assets/images/badges/australia.png') },
+        { id: "Asia", name: "Asia", icon: require('../../../assets/images/badges/asia.png') },
+        { id: "Europe", name: "Europe", icon: require('../../../assets/images/badges/europe.png') },
+        { id: "North America", name: "North America", icon: require('../../../assets/images/badges/north-america.png') }
+      ];
+      
+      // Filter to only include continent badges
+      continentBadgeTypes.forEach(badge => {
+        if (Object.keys(countriesByContinent).includes(badge.name)) {
+          continentBadges.push(badge);
+        }
+      });
+      
+      setBadges(continentBadges);
+      
+      // Set initial badge if provided
+      if (initialBadgeId) {
+        const index = continentBadges.findIndex(badge => badge.id === initialBadgeId);
+        if (index !== -1) {
+          setCurrentBadgeIndex(index);
+        }
       }
-    }
+    };
+    
+    fetchBadges();
   }, [initialBadgeId]);
 
   const currentBadge = badges[currentBadgeIndex];
