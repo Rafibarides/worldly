@@ -41,8 +41,136 @@ import { Audio } from 'expo-av';
 export default function GameScreen() {
   const { currentUser } = useAuth();
   const navigation = useNavigation();
-
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Create a ref to store sound objects
+  const soundRef = useRef(null);
+  // Define initialLoadRef at the component level, not inside the useEffect
+  const initialLoadRef = useRef(true);
+  
+  // Add this near the top of your component with other state variables
+  const [appJustOpened, setAppJustOpened] = useState(true);
+  
+  // Add this useEffect to detect if the app was just opened
+  useEffect(() => {
+    // Set a flag that the app just opened
+    setAppJustOpened(true);
+    
+    // After a short delay, reset the flag
+    const timer = setTimeout(() => {
+      setAppJustOpened(false);
+    }, 3000); // 3 seconds should be enough for initial loads
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Setup audio session function that will be used inside the component
+  useEffect(() => {
+    let audioSessionInitialized = false;
+    
+    const setupAudio = async () => {
+      try {
+        // Only initialize once
+        if (!audioSessionInitialized) {
+          await Audio.setAudioModeAsync({
+            playsInSilentMode: true,
+            shouldDuckAndroid: true,
+            staysActiveInBackground: false,
+            playThroughEarpieceAndroid: false,
+          });
+          audioSessionInitialized = true;
+          console.log('Audio session initialized successfully');
+        }
+      } catch (error) {
+        console.error('Error initializing audio session:', error);
+      }
+    };
+    
+    setupAudio();
+    
+    // Clean up any sounds when component unmounts
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  // Update the playChallengeSound function
+  const playChallengeSound = async () => {
+    try {
+      // Try to initialize audio session first (this is crucial!)
+      await Audio.setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldDuckAndroid: true,
+        staysActiveInBackground: false,
+        playThroughEarpieceAndroid: false,
+      });
+      
+      // Unload any previous sound
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+      
+      // Create and load the sound with proper error handling
+      const soundObject = new Audio.Sound();
+      await soundObject.loadAsync(require('../../../assets/sound/chalReq.mp3'));
+      
+      // Store in ref for cleanup
+      soundRef.current = soundObject;
+      
+      // Play the sound
+      await soundObject.playAsync();
+      
+      // Unload sound when finished playing
+      soundObject.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          soundObject.unloadAsync().catch(error => {
+            console.log('Error unloading sound:', error);
+          });
+          if (soundRef.current === soundObject) {
+            soundRef.current = null;
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error playing challenge sound:", error);
+    }
+  };
+
+  // Similarly for friend request sound
+  const playFriendRequestSound = async () => {
+    try {
+      // Unload any previous sound
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+      }
+      
+      // Create and load the sound
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/sound/friendReq.mp3')
+      );
+      
+      // Store in ref for cleanup
+      soundRef.current = sound;
+      
+      // Play the sound
+      await sound.playAsync();
+      
+      // Unload sound when finished playing
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync().catch(error => {
+            console.log('Error unloading sound:', error);
+          });
+          soundRef.current = null;
+        }
+      });
+    } catch (error) {
+      console.error("Error playing friend request sound:", error);
+    }
+  };
 
   const headerFade = useSharedValue(1);
 
@@ -151,7 +279,7 @@ export default function GameScreen() {
       let challengerRequests = [];
       // Keep track of challenges we've already shown notifications for
       const notifiedChallenges = new Set();
-
+      
       // Query for challenges where the current user is the challenged player
       const qChallenged = query(
         collection(database, "challenges"),
@@ -178,9 +306,17 @@ export default function GameScreen() {
             // Only show notifications for challenges we haven't notified about yet
             .filter(challenge => !notifiedChallenges.has(challenge.id));
             
-          // Play sound if there are new challenges
-          if (newChallenges.length > 0) {
+          // Play sound ONLY if:
+          // 1. There are new challenges
+          // 2. We're past the initial load (initialLoadRef.current is false)
+          // 3. The app wasn't just opened (appJustOpened is false)
+          if (newChallenges.length > 0 && !initialLoadRef.current && !appJustOpened) {
             playChallengeSound();
+          }
+          
+          // After processing this snapshot, mark that we're past the initial load
+          if (initialLoadRef.current) {
+            initialLoadRef.current = false;
           }
           
           // Show toast for each new challenge
@@ -341,44 +477,6 @@ export default function GameScreen() {
     });
   };
 
-  // Add this function inside the component before the useEffect that handles challenge requests
-  const playChallengeSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/sound/chalReq.mp3')
-      );
-      await sound.playAsync();
-      
-      // Unload sound when finished playing
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (error) {
-      console.error("Error playing challenge sound:", error);
-    }
-  };
-
-  // Update the playFriendRequestSound function to use the friendReq.mp3 file
-  const playFriendRequestSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/sound/friendReq.mp3') // Using the friend request sound file
-      );
-      await sound.playAsync();
-      
-      // Unload sound when finished playing
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (error) {
-      console.error("Error playing friend request sound:", error);
-    }
-  };
-
   // Add this useEffect to listen for friend requests
   useEffect(() => {
     if (currentUser) {
@@ -404,9 +502,17 @@ export default function GameScreen() {
             // Only show notifications for requests we haven't notified about yet
             .filter(request => !notifiedFriendRequests.has(request.id));
             
-          // Play sound if there are new friend requests
-          if (newFriendRequests.length > 0) {
+          // Play sound ONLY if:
+          // 1. There are new friend requests
+          // 2. We're past the initial load
+          // 3. The app wasn't just opened from a notification
+          if (newFriendRequests.length > 0 && !initialLoadRef.current && !appJustOpened) {
             playFriendRequestSound();
+          }
+          
+          // After the first load, set initialLoad to false
+          if (initialLoadRef.current) {
+            initialLoadRef.current = false;
           }
           
           // Show toast for each new friend request

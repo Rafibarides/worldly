@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import BottomTabNavigator from './navigation/BottomTabNavigator';
 import AuthStackNavigator from './navigation/AuthStackNavigator';
@@ -7,15 +7,43 @@ import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { AudioProvider } from './contexts/AudioContext';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync, savePushToken, setupNotificationListeners } from './services/notificationService';
 
 // Routes component which checks if there's a logged-in user
 function Routes() {
   const { currentUser } = useAuth();
-  return (
-    <NavigationContainer>
-      {currentUser ? <BottomTabNavigator /> : <AuthStackNavigator />}
-    </NavigationContainer>
-  );
+  const navigation = useNavigation();
+  const [expoPushToken, setExpoPushToken] = useState('');
+  const notificationListener = useRef();
+  const responseListener = useRef();
+  
+  useEffect(() => {
+    // Register for push notifications when a user is logged in
+    if (currentUser) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          setExpoPushToken(token);
+          savePushToken(token);
+        }
+      });
+      
+      // Set up notification listeners
+      notificationListener.current = setupNotificationListeners(navigation);
+      
+      // Clean up listeners on unmount
+      return () => {
+        if (notificationListener.current) {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+        }
+        if (responseListener.current) {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        }
+      };
+    }
+  }, [currentUser, navigation]);
+
+  return currentUser ? <BottomTabNavigator /> : <AuthStackNavigator />;
 }
 
 // Define the toast config with a custom challenge toast
@@ -213,13 +241,15 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function App({ navigation }) {
+export default function App() {
   return (
-    <AuthProvider navigation={navigation}>
-      <AudioProvider>
-        <Routes />
-        <Toast config={toastConfig} />
-      </AudioProvider>
-    </AuthProvider>
+    <NavigationContainer>
+      <AuthProvider>
+        <AudioProvider>
+          <Routes />
+          <Toast config={toastConfig} />
+        </AudioProvider>
+      </AuthProvider>
+    </NavigationContainer>
   );
 }

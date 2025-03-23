@@ -3,8 +3,30 @@ require('dotenv').config();
 
 const admin = require('firebase-admin');
 
-const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || './worldly-cfcb5-firebase-adminsdk-fbsvc-2713b61fa6.json');
-const serviceAccount = require(serviceAccountPath);
+// Try to load from environment variable first
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    console.log('Using service account from environment variable');
+  } catch (error) {
+    console.error('Error parsing service account JSON from environment:', error);
+    process.exit(1);
+  }
+} else {
+  // Fall back to file
+  const serviceAccountPath = path.resolve(
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 
+    './wordly-app-b86b5-firebase-adminsdk-fbsvc-32db643035.json'
+  );
+  try {
+    serviceAccount = require(serviceAccountPath);
+    console.log(`Using service account from file: ${serviceAccountPath}`);
+  } catch (error) {
+    console.error(`Error loading service account from ${serviceAccountPath}:`, error);
+    process.exit(1);
+  }
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),

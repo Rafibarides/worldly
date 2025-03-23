@@ -40,3 +40,6 @@ initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 export const database = getFirestore(app);
 export const storage = getStorage(app);
 export const auth = getAuth(app);
+
+// Ensure the FIREBASE_PROJECT_ID is wordly-app-b86b5
+console.log('Using Firebase project:', expoConfig.extra.FIREBASE_PROJECT_ID);

@@ -235,11 +235,23 @@ export default function FriendsListScreen({ navigation }) {
   // Challenge friend handler: Creates a challenge record and navigates to PendingRoom
   const handleChallengeFriend = async (friend) => {
     try {
+      // Validate friend object
+      if (!friend || !friend.uid) {
+        console.error('Invalid friend object:', friend);
+        Alert.alert("Error", "Invalid friend data. Please try again.");
+        return;
+      }
+
+      console.log('Creating challenge with:', {
+        challengerId: currentUser.uid,
+        challengedId: friend.uid
+      });
+
       // Create the challenge document
       const challengesRef = collection(database, "challenges");
       const newChallengeRef = await addDoc(challengesRef, {
         challengerId: currentUser.uid,
-        challengedId: friend.uid,
+        challengedId: friend.uid, // Ensure this field is called challengedId consistently
         status: "pending",
         scoreList: [
           { score: 0, uid: currentUser.uid },
@@ -248,8 +260,9 @@ export default function FriendsListScreen({ navigation }) {
         country: [],
         createdAt: serverTimestamp(),
         gameId: `${currentUser.uid}_${friend.uid}_${Date.now()}`,
-        challengerJoined: true, // Mark that the challenger is in the pending room
+        challengerJoined: true,
       });
+      
       // Update the challenge document with its own ID
       await updateDoc(newChallengeRef, { challengeId: newChallengeRef.id });
 

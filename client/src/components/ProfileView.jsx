@@ -40,6 +40,7 @@ export default function ProfileView({
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [levelModalVisible, setLevelModalVisible] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [trophyModalVisible, setTrophyModalVisible] = useState(false);
 
   const renderBadges = () => {
     const earnedBadges = new Set(user?.badges || []);
@@ -309,7 +310,20 @@ export default function ProfileView({
               />
             </TouchableOpacity>
           )}
-          <Text style={styles.username}>{user?.username}</Text>
+          <View style={styles.usernameContainer}>
+            <Text style={styles.username}>{user?.username || 'User'}</Text>
+            {user?.continentsTracked && Object.keys(user.continentsTracked).length === 6 && (
+              <TouchableOpacity 
+                onPress={() => setTrophyModalVisible(true)}
+                style={styles.trophyContainer}
+              >
+                <Image 
+                  source={require("../../assets/images/trophy.png")} 
+                  style={styles.trophyIcon} 
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         {showChallenge ? (
           <TouchableOpacity
@@ -475,6 +489,40 @@ export default function ProfileView({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Trophy Celebration Modal */}
+      <Modal
+        visible={trophyModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setTrophyModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setTrophyModalVisible(false)}
+        >
+          <View style={styles.trophyModalContent}>
+            <Image
+              source={require("../../assets/images/stars.png")}
+              style={styles.trophyStarsIcon}
+            />
+            <Text style={styles.trophyModalTitle}>World Explorer!</Text>
+            <Text style={styles.trophyModalDescription}>
+              {user?.username || 'User'} has successfully guessed every country from all six continents.
+            </Text>
+            <Text style={styles.trophyNoteText}>
+              Guess every country to earn this badge
+            </Text>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setTrophyModalVisible(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -550,11 +598,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     zIndex: 1,
   },
+  usernameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   username: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
     margin: 10,
+  },
+  trophyContainer: {
+    backgroundColor: "#8ccb72",
+    padding: 5,
+    borderRadius: 10,
+  },
+  trophyIcon: {
+    width: 25,
+    height: 25,
   },
   statCard: {
     backgroundColor: "rgba(177, 216, 138, 0.1)",
@@ -802,6 +864,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  trophyModalContent: {
+    width: '85%',
+    backgroundColor: '#87c66b',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  trophyStarsIcon: {
+    width: 60,
+    height: 60,
+    marginBottom: 15,
+  },
+  trophyModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  trophyModalDescription: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  trophyNoteText: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.8,
+    marginBottom: 20,
+    fontStyle: 'italic',
   },
 });
   
