@@ -19,13 +19,13 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotificationsAsync() {
   let token;
   
-  // Check if we're running on a physical device (notifications don't work on simulators)
+  // Check if we're running on a physical device
   if (!Device.isDevice) {
     console.log('Push notifications require a physical device');
     return null;
   }
 
-  // Request permission to show notifications
+  // Request permission
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
   
@@ -37,6 +37,17 @@ export async function registerForPushNotificationsAsync() {
   if (finalStatus !== 'granted') {
     console.log('Failed to get push token for push notification!');
     return null;
+  }
+  
+  // Set up notification channels for Android
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+      sound: 'chalReq.wav', // Reference to the sound file (without the path)
+    });
   }
   
   // Get the token

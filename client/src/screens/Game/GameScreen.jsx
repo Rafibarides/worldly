@@ -37,6 +37,7 @@ import { useNavigation } from "@react-navigation/native";
 import RejoinChallengeButton from '../../components/RejoinChallengeButton';
 import Toast from 'react-native-toast-message';
 import { Audio } from 'expo-av';
+import SelectionModal from './SelectionModal';
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -207,15 +208,31 @@ export default function GameScreen() {
   const AnimatedTouchableOpacity =
     Animated.createAnimatedComponent(TouchableOpacity);
 
+  // Add this state variable near the top of the component
+  const [selectionModalVisible, setSelectionModalVisible] = useState(false);
+
+  // Update the handleStartSoloGame function
   const handleStartSoloGame = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      navigation.navigate("GamePlay", {
-        gameType: "solo",
-        settings: defaultGameSettings,
-      });
-    }, 500);
+    // Instead of starting the game directly, show the selection modal
+    setSelectionModalVisible(true);
+  };
+
+  // Add this new function to handle the game type selection
+  const handleGameTypeSelection = (gameType) => {
+    setSelectionModalVisible(false);
+    
+    if (gameType === 'countries') {
+      // Only proceed with the existing functionality for 'countries' game type
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        navigation.navigate("GamePlay", {
+          gameType: "solo",
+          settings: defaultGameSettings,
+        });
+      }, 500);
+    }
+    // For flags and capitals, we do nothing for now
   };
 
   const handleStartMultiplayerGame = () => {
@@ -806,6 +823,13 @@ export default function GameScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Add the SelectionModal component */}
+      <SelectionModal
+        visible={selectionModalVisible}
+        onClose={() => setSelectionModalVisible(false)}
+        onSelectOption={handleGameTypeSelection}
+      />
     </LinearGradient>
   );
 }
