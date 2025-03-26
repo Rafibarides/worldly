@@ -774,140 +774,202 @@ export default function GameSummaryScreen() {
     }
   };
 
+  // First, let's add a check to determine if we're displaying a capitals game summary
+  const isCapitalsGame = gameType === "capitals";
+  const isFlagsGame = gameType === "flags";
+  const isSpecialGame = isCapitalsGame || isFlagsGame;
+
+  // Add this declaration before the return statement, after all other animations are defined
+  const scoreAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: medalScale.value }]
+    };
+  });
+
+  // Then, modify the main return statement to conditionally render different content
   return (
-    <AnimatedLinearGradient 
-      colors={['#70ab51', '#7dbc63', '#70ab51']}
-      locations={[0, 0.5, 0.06]}
-      start={{ x: 0, y: 0.5 }}
-      end={{ x: 0.06, y: 0.5 }}
-      style={[styles.container, containerAnimatedStyle]}
-    >
-      <View style={styles.contentContainer}>
-        <View style={styles.titlePill}>
-          <Animated.Image 
-            source={require('../../../assets/images/medal.png')} 
-            style={[styles.medalIcon, medalAnimatedStyle]} 
+    isSpecialGame ? (
+      // Capitals/Flags Game Summary view
+      <LinearGradient colors={["#b1d88a", "#87c66b"]} style={styles.container}>
+        <View style={styles.capitalsContainer}>
+          <Image 
+            source={require("../../../assets/images/stars.png")}
+            style={styles.starsImage}
           />
-          <Text style={styles.titleText}>Game Review</Text>
-        </View>
-        {/* Add Result Banner for multiplayer games */}
-        {gameType === "multiplayer" && (
-          <View style={[styles.resultBanner, getResultStyle()]}>
-            <Text style={styles.resultText}>
-              {result === "Winner" && (
-                <>
-                  Victory! <Image source={require('../../../assets/images/badge-hero.png')} style={styles.victoryIcon} />
-                </>
-              )}
-              {result === "Loser" && "Better luck next time! 😔"}
-              {result === "Tied" && "It's a tie! 🤝"}
-            </Text>
-            <Text style={styles.scoreText}>
-              Your Score: {finalScore} | Opponent's Score: {opponentScore}
+          <Text style={styles.capitalsTitle}>
+            {isCapitalsGame ? "Capitals" : "Flags"} Quiz Complete!
+          </Text>
+          
+          {/* Card container for score and description */}
+          <View style={styles.capitalsScoreCard}>
+            <Text style={styles.capitalsScoreLabel}>Your Score</Text>
+            <Text style={styles.capitalsScore}>{finalScore}</Text>
+            <Text style={styles.capitalsDescription}>
+              {isCapitalsGame 
+                ? `You correctly matched ${finalScore} capital cities to their countries.`
+                : `You correctly matched ${finalScore} flags to their countries.`
+              }
             </Text>
           </View>
-        )}
-        <Text style={styles.scoreText}>
-          Total: {finalScore} / {totalCountries} countries
-        </Text>
-        {/* Cards Container for Continent Breakdown */}
-        <View style={styles.cardsContainer}>
-          {sortedContinents.map((continent, index) => (
-            <AnimatedCard
-              key={continent}
-              delay={index * 100}
-              isHighest={index === 0}
-              index={index}
-              totalCards={sortedContinents.length}
-              onPress={() => handleContinentPress(continent)}
-            >
-              <Text style={styles.cardTitle}>{continent}</Text>
-              <Text style={styles.cardPercentage}>
-                {continentPercentages[continent]}%
-              </Text>
-            </AnimatedCard>
-          ))}
-        </View>
-        {/* Animated Button for navigating back to game selection */}
-        <AnimatedTouchableOpacity
-          style={[styles.button, buttonAnimatedStyle]}
-          onPressIn={() => {
-            buttonPressScale.value = withSequence(
-              withTiming(1.2, { duration: 100 }),
-              withTiming(1, { duration: 100 })
-            );
-          }}
-          onPress={() =>
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Game' }],
-            })
-          }
-        >
-          <View style={styles.backButtonContent}>
-            <MaterialIcons 
-              name="arrow-back-ios" 
-              size={24} 
-              color="#ffc268" 
-              style={styles.buttonIcon} 
-            />
-            <Text style={styles.buttonText}>Back to Game Selection</Text>
-          </View>
-        </AnimatedTouchableOpacity>
-        
-        {/* Only show Missed Countries Button if there are missed countries */}
-        {finalScore < totalCountries && (
+          
+          {/* Button to return to game selection */}
           <TouchableOpacity
-            style={styles.missedCountriesButton}
-            onPress={() => setModalVisible(true)}
+            style={styles.capitalsButton}
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Game' }],
+              })
+            }
           >
-            <Text style={styles.missedCountriesButtonText}>Missed Countries</Text>
+            <View style={styles.backButtonContent}>
+              <MaterialIcons 
+                name="arrow-back-ios" 
+                size={24} 
+                color="#ffc268" 
+                style={styles.buttonIcon} 
+              />
+              <Text style={styles.buttonText}>Back to Game Selection</Text>
+            </View>
           </TouchableOpacity>
-        )}
-        
-        {/* Modal for All Missed Countries */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>All Missed Countries</Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Text style={styles.closeButton}>×</Text>
-                </TouchableOpacity>
-              </View>
-              {renderMissedCountriesList()}
-            </View>
+        </View>
+      </LinearGradient>
+    ) : (
+      // Original Countries Game Summary view - exactly as it was
+      <AnimatedLinearGradient 
+        colors={['#70ab51', '#7dbc63', '#70ab51']}
+        locations={[0, 0.5, 0.06]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 0.06, y: 0.5 }}
+        style={[styles.container, containerAnimatedStyle]}
+      >
+        <View style={styles.contentContainer}>
+          <View style={styles.titlePill}>
+            <Animated.Image 
+              source={require('../../../assets/images/medal.png')} 
+              style={[styles.medalIcon, medalAnimatedStyle]} 
+            />
+            <Text style={styles.titleText}>Game Review</Text>
           </View>
-        </Modal>
-        
-        {/* Modal for Continent-Specific Missed Countries */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={continentModalVisible}
-          onRequestClose={() => setContinentModalVisible(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  Missed Countries: {selectedContinent}
+          {/* Add Result Banner for multiplayer games */}
+          {gameType === "multiplayer" && (
+            <View style={[styles.resultBanner, getResultStyle()]}>
+              <Text style={styles.resultText}>
+                {result === "Winner" && (
+                  <>
+                    Victory! <Image source={require('../../../assets/images/badge-hero.png')} style={styles.victoryIcon} />
+                  </>
+                )}
+                {result === "Loser" && "Better luck next time! 😔"}
+                {result === "Tied" && "It's a tie! 🤝"}
+              </Text>
+              <Text style={styles.scoreText}>
+                Your Score: {finalScore} | Opponent's Score: {opponentScore}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.scoreText}>
+            Total: {finalScore} / {totalCountries} countries
+          </Text>
+          {/* Cards Container for Continent Breakdown */}
+          <View style={styles.cardsContainer}>
+            {sortedContinents.map((continent, index) => (
+              <AnimatedCard
+                key={continent}
+                delay={index * 100}
+                isHighest={index === 0}
+                index={index}
+                totalCards={sortedContinents.length}
+                onPress={() => handleContinentPress(continent)}
+              >
+                <Text style={styles.cardTitle}>{continent}</Text>
+                <Text style={styles.cardPercentage}>
+                  {continentPercentages[continent]}%
                 </Text>
-                <TouchableOpacity onPress={() => setContinentModalVisible(false)}>
-                  <Text style={styles.closeButton}>×</Text>
-                </TouchableOpacity>
-              </View>
-              {selectedContinent && renderMissedCountriesList(selectedContinent)}
-            </View>
+              </AnimatedCard>
+            ))}
           </View>
-        </Modal>
-      </View>
-    </AnimatedLinearGradient>
+          {/* Animated Button for navigating back to game selection */}
+          <AnimatedTouchableOpacity
+            style={[styles.button, buttonAnimatedStyle]}
+            onPressIn={() => {
+              buttonPressScale.value = withSequence(
+                withTiming(1.2, { duration: 100 }),
+                withTiming(1, { duration: 100 })
+              );
+            }}
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Game' }],
+              })
+            }
+          >
+            <View style={styles.backButtonContent}>
+              <MaterialIcons 
+                name="arrow-back-ios" 
+                size={24} 
+                color="#ffc268" 
+                style={styles.buttonIcon} 
+              />
+              <Text style={styles.buttonText}>Back to Game Selection</Text>
+            </View>
+          </AnimatedTouchableOpacity>
+          
+          {/* Only show Missed Countries Button if there are missed countries */}
+          {finalScore < totalCountries && (
+            <TouchableOpacity
+              style={styles.missedCountriesButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <Text style={styles.missedCountriesButtonText}>Missed Countries</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Modal for All Missed Countries */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>All Missed Countries</Text>
+                  <TouchableOpacity onPress={() => setModalVisible(false)}>
+                    <Text style={styles.closeButton}>×</Text>
+                  </TouchableOpacity>
+                </View>
+                {renderMissedCountriesList()}
+              </View>
+            </View>
+          </Modal>
+          
+          {/* Modal for Continent-Specific Missed Countries */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={continentModalVisible}
+            onRequestClose={() => setContinentModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    Missed Countries: {selectedContinent}
+                  </Text>
+                  <TouchableOpacity onPress={() => setContinentModalVisible(false)}>
+                    <Text style={styles.closeButton}>×</Text>
+                  </TouchableOpacity>
+                </View>
+                {selectedContinent && renderMissedCountriesList(selectedContinent)}
+              </View>
+            </View>
+          </Modal>
+        </View>
+      </AnimatedLinearGradient>
+    )
   );
 }
 
@@ -1193,5 +1255,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+
+  // Capitals Game Summary styles
+  capitalsContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  starsImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 24,
+  },
+  capitalsTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  capitalsScoreCard: {
+    backgroundColor: '#7dbc63', // lighter green shade
+    borderRadius: 16,
+    width: '100%',
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  capitalsScoreLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff', // white for better contrast
+    marginBottom: 8,
+  },
+  capitalsScore: {
+    fontSize: 42, // increased size for emphasis
+    fontWeight: 'bold',
+    color: '#fff', // white for better contrast
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  capitalsDescription: {
+    fontSize: 18,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  capitalsButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    // Shadow properties removed
   },
 }); 

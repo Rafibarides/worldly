@@ -21,6 +21,8 @@ import AboutScreen from '../screens/About/AboutScreen'; // Using this as "Logs" 
 import LogsScreen from '../screens/Logs/LogsScreen';
 import BadgesListScreen from '../screens/Badges/BadgesListScreen';
 import PendingRoomScreen from '../screens/Game/PendingRoomScreen';  // Add this import
+import CapitalsGame from '../screens/Game/CapitalsGame';
+import FlagsGame from '../screens/Game/FlagsGame';
 
 // NEW import for the settings screen
 import ProfileSettingsScreen from '../screens/Settings/ProfileSettingsScreen';
@@ -85,13 +87,23 @@ function GameStackNavigator() {
       <GameStack.Screen 
         name="GameMain" 
         component={GameScreen}
-        options={{ headerShown: false }}  // Ensure header is hidden
+        options={{ headerShown: false }}
       />
       <GameStack.Screen name="GamePlay" component={GamePlayScreen} />
       <GameStack.Screen name="GameSummary" component={GameSummaryScreen} />
       <GameStack.Screen 
         name="PendingRoom" 
         component={PendingRoomScreen}
+        options={{ headerShown: false }}
+      />
+      <GameStack.Screen 
+        name="CapitalsGame" 
+        component={CapitalsGame}
+        options={{ headerShown: false }}
+      />
+      <GameStack.Screen 
+        name="FlagsGame" 
+        component={FlagsGame}
         options={{ headerShown: false }}
       />
     </GameStack.Navigator>

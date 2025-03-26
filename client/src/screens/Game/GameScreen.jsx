@@ -38,6 +38,7 @@ import RejoinChallengeButton from '../../components/RejoinChallengeButton';
 import Toast from 'react-native-toast-message';
 import { Audio } from 'expo-av';
 import SelectionModal from './SelectionModal';
+import CapitalsGame from './CapitalsGame';
 
 export default function GameScreen() {
   const { currentUser } = useAuth();
@@ -217,12 +218,11 @@ export default function GameScreen() {
     setSelectionModalVisible(true);
   };
 
-  // Add this new function to handle the game type selection
+  // Update the handleGameTypeSelection function
   const handleGameTypeSelection = (gameType) => {
     setSelectionModalVisible(false);
     
     if (gameType === 'countries') {
-      // Only proceed with the existing functionality for 'countries' game type
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
@@ -231,8 +231,26 @@ export default function GameScreen() {
           settings: defaultGameSettings,
         });
       }, 500);
+    } else if (gameType === 'capitals') {
+      // Try directly navigating without reset
+      console.log('Attempting to navigate to CapitalsGame...');
+      
+      // Just use regular navigation
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        navigation.navigate("CapitalsGame");
+      }, 300);
+    } else if (gameType === 'flags') {
+      // Use the same pattern as for CapitalsGame
+      console.log('Attempting to navigate to FlagsGame...');
+      
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        navigation.navigate("FlagsGame");
+      }, 300);
     }
-    // For flags and capitals, we do nothing for now
   };
 
   const handleStartMultiplayerGame = () => {

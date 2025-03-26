@@ -65,7 +65,7 @@ const SelectionModal = ({ visible, onClose, onSelectOption }) => {
               </AnimatedTouchableOpacity>
 
               <AnimatedTouchableOpacity
-                style={[styles.gameTypeOption, styles.disabledOption, flagsAnimatedStyle]}
+                style={[styles.gameTypeOption, flagsAnimatedStyle]}
                 activeOpacity={0.8}
                 onPressIn={() => handlePressIn(flagsScale)}
                 onPressOut={() => handlePressOut(flagsScale)}
@@ -73,11 +73,11 @@ const SelectionModal = ({ visible, onClose, onSelectOption }) => {
               >
                 <MaterialIcons name="flag" size={32} color="#ffc268" />
                 <Text style={styles.optionTitle}>Flags</Text>
-                <Text style={styles.optionDescription}>Coming soon</Text>
+                <Text style={styles.optionDescription}>Identify country flags</Text>
               </AnimatedTouchableOpacity>
 
               <AnimatedTouchableOpacity
-                style={[styles.gameTypeOption, styles.disabledOption, capitalsAnimatedStyle]}
+                style={[styles.gameTypeOption, capitalsAnimatedStyle]}
                 activeOpacity={0.8}
                 onPressIn={() => handlePressIn(capitalsScale)}
                 onPressOut={() => handlePressOut(capitalsScale)}
@@ -85,7 +85,7 @@ const SelectionModal = ({ visible, onClose, onSelectOption }) => {
               >
                 <MaterialIcons name="location-city" size={32} color="#ffc268" />
                 <Text style={styles.optionTitle}>Capitals</Text>
-                <Text style={styles.optionDescription}>Coming soon</Text>
+                <Text style={styles.optionDescription}>Match capitals to countries</Text>
               </AnimatedTouchableOpacity>
 
               <TouchableOpacity
@@ -145,9 +145,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,
-  },
-  disabledOption: {
-    opacity: 0.7,
   },
   optionTitle: {
     fontSize: 18,

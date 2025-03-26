@@ -399,7 +399,7 @@ export default function ProfileView({
             <View style={styles.verticalDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{user?.stats?.gamesWon}</Text>
-              <Text style={styles.statLabel}>Wins</Text>
+              <Text style={styles.statLabel}>Multiplayer Wins</Text>
             </View>
           </View>
         </View>
@@ -648,6 +648,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   statLabel: {
+    textAlign: "center",
     fontSize: 16,
     color: "#fff",
     opacity: 0.9,
