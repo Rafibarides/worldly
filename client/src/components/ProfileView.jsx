@@ -148,20 +148,24 @@ export default function ProfileView({
 
   const handleImagePick = async () => {
     try {
-      // Request permission
+      // Request permission with clear purpose - fix the parameter format
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
+        Alert.alert(
+          'Permission Required', 
+          'To set a profile picture, Worldly needs access to your photo library. We only use the selected image as your profile picture and don\'t access any other photos or data.'
+        );
         return;
       }
 
-      // Launch image picker
+      // Launch image picker with minimal permissions
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        // Ensure image is saved as JPG
+        // Don't collect EXIF data
         exif: false,
       });
 
@@ -178,6 +182,13 @@ export default function ProfileView({
         // Update user profile with new avatar URL
         if (downloadURL) {
           const userRef = doc(database, "users", currentUser.uid);
+          
+          // If user already has an avatar, we'll delete the old one
+          if (currentUser.avatarUrl) {
+            // Clear image cache for the old avatar URL
+            clearImageFromCache(currentUser.avatarUrl);
+          }
+          
           await updateDoc(userRef, {
             avatarUrl: downloadURL
           });
@@ -187,11 +198,6 @@ export default function ProfileView({
             ...currentUser,
             avatarUrl: downloadURL
           });
-          
-          // Clear image cache for the old avatar URL if it exists
-          if (currentUser.avatarUrl) {
-            clearImageFromCache(currentUser.avatarUrl);
-          }
         }
         setIsUploading(false);
       }
@@ -808,14 +814,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   largeAvatar: {
-    width: 250,
-    height: 250,
-    borderRadius: 125,
+    width: '80%',
+    height: undefined,
+    aspectRatio: 1,
+    maxWidth: 300,
+    maxHeight: 300,
+    borderRadius: 150,
     borderWidth: 5,
     borderColor: '#fff',
   },
   levelModalContent: {
-    width: '80%',
+    width: '90%',
+    maxWidth: 500,
     backgroundColor: '#87c66b',
     borderRadius: 20,
     padding: 20,
@@ -867,7 +877,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   trophyModalContent: {
-    width: '85%',
+    width: '90%',
+    maxWidth: 500,
     backgroundColor: '#87c66b',
     borderRadius: 20,
     padding: 20,
@@ -901,6 +912,26 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     marginBottom: 20,
     fontStyle: 'italic',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 20,
+  },
+  badgeModalContent: {
+    width: '90%',
+    maxWidth: 500,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
   

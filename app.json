@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Worldly",
+    "slug": "worldly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.playworldly.worldly",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Worldly needs access to your photo library to select a profile picture only. Your selected photo will be uploaded to our servers and previous profile photos will be deleted. We don't collect or store any metadata from your photos.",
+        "NSMicrophoneUsageDescription": null,
+        "NSContactsUsageDescription": null
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.playworldly.worldly",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Worldly needs access to your photo library to select a profile picture only. Your selected photo will be uploaded to our servers and previous profile photos will be deleted. We don't collect or store any metadata from your photos.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ]
+  }
+} 

@@ -11,10 +11,12 @@ const db = admin.firestore();
 async function sendPushNotification(expoPushToken, title, body, data = {}) {
   const message = {
     to: expoPushToken,
-    sound: 'default',
+    sound: 'chalReq',
     title,
     body,
     data,
+    _displayInForeground: false,
+    priority: 'high',
   };
 
   try {

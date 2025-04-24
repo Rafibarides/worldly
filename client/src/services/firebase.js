@@ -37,9 +37,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 
-export const database = getFirestore(app);
-export const storage = getStorage(app);
-export const auth = getAuth(app);
+// After initializing Firebase
+console.log("Firebase app initialized with config:", {
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket
+});
+
+// Explicitly export these variables
+const auth = getAuth(app);
+const database = getFirestore(app);
+const storage = getStorage(app);
+
+export { auth, database, storage, app };
 
 // Ensure the FIREBASE_PROJECT_ID is wordly-app-b86b5
 console.log('Using Firebase project:', expoConfig.extra.FIREBASE_PROJECT_ID);

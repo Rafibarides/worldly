@@ -144,39 +144,42 @@ export default function SignUpScreen({ navigation }) {
     const replacedName = rawName.replace(/\s/g, "_");
     setUsername(replacedName);
 
-    // Then run the normal logic
-    const trimmed = replacedName.trim();
-    if (!trimmed) {
-      // Empty or only underscores
+    // Clear message if empty
+    if (!replacedName.trim()) {
       setUsernameAvailable(false);
       setAvailabilityMessage('');
       return;
     }
 
-    const lowerName = trimmed.toLowerCase();
-    const usersRef = collection(database, "users");
-    const nameQuery = query(usersRef, where("username_lower", "==", lowerName));
-    const snapshot = await getDocs(nameQuery);
+    try {
+      const lowerName = replacedName.trim().toLowerCase();
+      const usersRef = collection(database, "users");
+      const nameQuery = query(usersRef, where("username_lower", "==", lowerName));
+      const snapshot = await getDocs(nameQuery);
 
-    if (!snapshot.empty) {
-      setUsernameAvailable(false);
-      setAvailabilityMessage('This username is taken');
-    } else {
+      if (!snapshot.empty) {
+        setUsernameAvailable(false);
+        setAvailabilityMessage('This username is taken');
+      } else {
+        setUsernameAvailable(true);
+        setAvailabilityMessage('Username is available');
+      }
+    } catch (error) {
+      console.error("Error checking username:", error);
+      // Set neutral state on error to allow signup attempt
       setUsernameAvailable(true);
-      setAvailabilityMessage('Username is available');
+      setAvailabilityMessage('');
     }
   };
 
   const handleSignup = async () => {
     if (!username || !email || !password || !confirmPassword) {
-      setLoading(false);
-      alert('error', 'Error', 'All fields are required!');
+      Alert.alert('Error', 'All fields are required!');
       return;
     }
 
     if (password !== confirmPassword) {
-      setLoading(false);
-      alert('error', 'Error', 'Passwords do not match!');
+      Alert.alert('Error', 'Passwords do not match!');
       return;
     }
 
@@ -184,46 +187,97 @@ export default function SignUpScreen({ navigation }) {
     try {
       // Final check: Ensure no one created this username in the meantime
       const usernameLower = username.trim().toLowerCase();
-      const usersRef = collection(database, "users");
-      const usernameQuery = query(usersRef, where("username_lower", "==", usernameLower));
-      const usernameSnapshot = await getDocs(usernameQuery);
-      if (!usernameSnapshot.empty) {
-        setLoading(false);
-        alert('error', 'Error', 'Sorry, this username is taken!');
-        return;
+      
+      try {
+        const usersRef = collection(database, "users");
+        const usernameQuery = query(usersRef, where("username_lower", "==", usernameLower));
+        const usernameSnapshot = await getDocs(usernameQuery);
+        
+        if (!usernameSnapshot.empty) {
+          setLoading(false);
+          Alert.alert('Error', 'Sorry, this username is taken!');
+          return;
+        }
+      } catch (queryError) {
+        console.log("Error checking username availability:", queryError);
+        // Continue with signup even if username check fails
       }
 
+      // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Generate and upload avatar to Firebase storage (as JPG)
-      const avatarUrl = await generateAndUploadAvatar(user.uid);
+      try {
+        // Generate and upload avatar to Firebase storage
+        const avatarUrl = await generateAndUploadAvatar(user.uid);
 
-      // Include the lower-case username in the user data
-      const currData = {
-        username,
-        username_lower: usernameLower,
-        email,
-        friends: [],
-        level: 1,
-        stats: { gamesPlayed: 0, gamesWon: 0 },
-        avatarUrl, // Use the JPG avatar URL from Firebase storage
-        uid: user.uid,
-        createdAt: Date.now(),
-      };
+        // Include the lower-case username in the user data
+        const userData = {
+          username,
+          username_lower: usernameLower,
+          email,
+          friends: [],
+          level: 1,
+          stats: { gamesPlayed: 0, gamesWon: 0 },
+          avatarUrl,
+          uid: user.uid,
+          createdAt: Date.now(),
+        };
 
-      const userDocRef = doc(database, "users", user.uid);
-      await setDoc(userDocRef, currData);
-      await AsyncStorage.setItem('user', JSON.stringify(currData));
+        // Create user document in Firestore
+        const userDocRef = doc(database, "users", user.uid);
+        await setDoc(userDocRef, userData);
+        
+        // Save to AsyncStorage
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
 
-      setCurrentUser(currData);
+        // Update auth context
+        setCurrentUser(userData);
+      } catch (profileError) {
+        console.error("Error setting up user profile:", profileError);
+        // Even if profile setup fails, at least store basic user info
+        const basicUserData = { 
+          username, 
+          username_lower: usernameLower,
+          email, 
+          uid: user.uid,
+          createdAt: Date.now()
+        };
+        
+        await AsyncStorage.setItem('user', JSON.stringify(basicUserData));
+        setCurrentUser(basicUserData);
+        
+        Alert.alert(
+          'Partial Success', 
+          'Your account was created, but we could not set up your full profile. Some features may be limited.'
+        );
+      }
+      
       setLoading(false);
     } catch (err) {
-      console.error('Error during signup or Firestore operation:', err);
+      console.error('Error during signup:', err);
       setLoading(false);
-      alert('Error: ' + err.message);
+      
+      // Handle specific Firebase errors
+      if (err.code === 'auth/email-already-in-use') {
+        Alert.alert('Error', 'This email is already registered. Please use a different email.');
+      } else if (err.code === 'auth/weak-password') {
+        Alert.alert('Error', 'Password is too weak. Please use a stronger password.');
+      } else if (err.code === 'auth/invalid-email') {
+        Alert.alert('Error', 'The email address is not valid.');
+      } else if (err.code === 'auth/network-request-failed') {
+        Alert.alert('Network Error', 'Please check your internet connection and try again.');
+      } else {
+        Alert.alert('Error', err.message || 'An error occurred during signup. Please try again.');
+      }
     }
   };
+
+  useEffect(() => {
+    // Debug log to check if Firebase is properly initialized
+    console.log("Firebase auth initialized:", !!auth);
+    console.log("Firebase database initialized:", !!database);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -289,11 +343,16 @@ export default function SignUpScreen({ navigation }) {
       
       <AnimatedTouchableOpacity
         onPress={handleSignup}
-        style={[styles.button, buttonAnimatedStyle]}
+        style={[
+          styles.button, 
+          buttonAnimatedStyle,
+          // Add visual feedback for disabled state
+          !usernameAvailable && { opacity: 0.5 }
+        ]}
         disabled={loading || !usernameAvailable}
       >
         <Text style={styles.buttonText}>
-          {!loading ? 'Sign Up' : 'Loading...'}
+          {loading ? 'Loading...' : 'Sign Up'}
         </Text>
       </AnimatedTouchableOpacity>
       

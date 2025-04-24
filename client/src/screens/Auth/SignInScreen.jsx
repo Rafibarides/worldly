@@ -28,8 +28,10 @@ export default function SignInScreen({ navigation }) {
   const passwordOpacity = useSharedValue(0);
   const passwordTranslateY = useSharedValue(20);
   const buttonOpacity = useSharedValue(0);
-  const buttonTranslateY = useSharedValue(20);
+  const buttonTranslateY = useSharedValue(0);
   const linkOpacity = useSharedValue(0);
+  const forgotOpacity = useSharedValue(0);
+  const forgotTranslateY = useSharedValue(20);
 
   // Start animations when component mounts
   useEffect(() => {
@@ -51,6 +53,9 @@ export default function SignInScreen({ navigation }) {
     buttonTranslateY.value = withDelay(800, withSpring(0));
     
     linkOpacity.value = withDelay(1000, withTiming(1, { duration: 500 }));
+    
+    forgotOpacity.value = withDelay(800, withTiming(1, { duration: 500 }));
+    forgotTranslateY.value = withDelay(800, withSpring(0));
   }, []);
 
   // Animated styles
@@ -85,6 +90,13 @@ export default function SignInScreen({ navigation }) {
   const linkAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: linkOpacity.value,
+    };
+  });
+
+  const forgotAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: forgotOpacity.value,
+      transform: [{ translateY: forgotTranslateY.value }],
     };
   });
 
@@ -163,6 +175,15 @@ export default function SignInScreen({ navigation }) {
           <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
         </TouchableOpacity>
       </Animated.View>
+      
+      <Animated.View style={forgotAnimatedStyle}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('ForgotPassword')}
+          style={styles.forgotPasswordContainer}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -221,6 +242,17 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: '#fff',
-    marginTop: 10
+    marginTop: 10,
+    textAlign: 'center'
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'center',
+    marginTop: 5,
+    marginBottom: 15,
+  },
+  forgotPasswordText: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center'
   },
 });

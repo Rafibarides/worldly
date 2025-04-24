@@ -10,6 +10,8 @@ import PendingRoomScreen from './screens/Game/PendingRoomScreen';
 import GameSummaryScreen from './screens/Game/GameSummaryScreen';
 import FriendsListScreen from './screens/Friends/FriendsListScreen';
 import GameScreen from './screens/Game/GameScreen'; // Ensure this import is correct
+import CapitalsGame from './screens/Game/CapitalsGame';
+import FlagsGame from './screens/Game/FlagsGame';
 
 const Stack = createStackNavigator();
 
@@ -89,6 +91,16 @@ export default function App() {
             name="PendingRoom"
             component={PendingRoomScreen}
             options={{ headerShown: true, title: 'Pending Challenge' }}
+          />
+          <Stack.Screen
+            name="CapitalsGame"
+            component={CapitalsGame}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="FlagsGame"
+            component={FlagsGame}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       </NavigationContainer>

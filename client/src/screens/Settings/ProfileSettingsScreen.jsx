@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Linking, Switch, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from 'firebase/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAudio } from '../../contexts/AudioContext';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { database, auth } from '../../services/firebase';
 
 export default function ProfileSettingsScreen({ navigation }) {
   const { currentUser, logout } = useAuth();
   const { musicEnabled, toggleMusic } = useAudio();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   const handleUpdatePassword = async () => {
     if (!currentPassword || !newPassword) {
@@ -37,7 +40,7 @@ export default function ProfileSettingsScreen({ navigation }) {
   };
 
   const handleOpenAboutWebsite = async () => {
-    const url = 'http://playworldly.com';
+    const url = 'https://playworldly.com';
     const supported = await Linking.canOpenURL(url);
     
     if (supported) {
@@ -45,6 +48,56 @@ export default function ProfileSettingsScreen({ navigation }) {
     } else {
       Alert.alert("Error", "Cannot open the link: " + url);
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      // Delete user document from Firestore
+      await deleteDoc(doc(database, "users", currentUser.uid));
+      
+      // Delete Firebase Auth user
+      await deleteUser(auth.currentUser);
+      
+      // Logout will be handled automatically by the auth state change listener
+      Alert.alert("Account Deleted", "Your account has been permanently deleted.");
+    } catch (error) {
+      Alert.alert("Account Deletion Error", error.message);
+    }
+  };
+
+  const showDeleteAccountConfirmation = () => {
+    Alert.alert(
+      "Delete Account",
+      "WARNING: This action cannot be undone. Deleting your account will permanently erase all your stats, records, profile images, and all data associated with your account from our system forever.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: () => {
+            // Show second confirmation dialog
+            Alert.alert(
+              "Confirm Deletion",
+              "Are you absolutely sure you want to delete your account? This action CANNOT be undone.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel"
+                },
+                {
+                  text: "Yes, Delete My Account",
+                  style: "destructive",
+                  onPress: handleDeleteAccount
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -102,6 +155,15 @@ export default function ProfileSettingsScreen({ navigation }) {
           <Text style={styles.settingText}>About Worldly</Text>
         </View>
         <MaterialIcons name="chevron-right" size={24} color="#999" />
+      </TouchableOpacity>
+
+      {/* Delete Account section */}
+      <Text style={styles.sectionHeader}>Account</Text>
+      <TouchableOpacity style={styles.settingItem} onPress={showDeleteAccountConfirmation}>
+        <View style={styles.settingContent}>
+          <MaterialIcons name="delete-forever" size={24} color="#ff6b6b" />
+          <Text style={[styles.settingText, { color: '#ff6b6b' }]}>Delete Account</Text>
+        </View>
       </TouchableOpacity>
 
       {/* Sign out button */}
