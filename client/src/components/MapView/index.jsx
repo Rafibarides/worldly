@@ -27,6 +27,7 @@ export default function MapView({
   mapWidth,
   guessedCountries,
   gameType,
+  showMissingCountries,
 }) {
   return (
     <View style={{ flex: 1 }} onLayout={onContainerLayout}>
@@ -51,12 +52,19 @@ export default function MapView({
             );
             let fillColor;
             if (gameType === "solo") {
-              // In solo mode, check if the guessedCountries array includes this country name
-              fillColor = guessedCountries.includes(normalizedFeatureName)
-                ? "#4bd670"
-                : "#FFF9C4";
+              // Check if country is guessed
+              const isGuessed = guessedCountries.includes(normalizedFeatureName);
+              
+              // In solo mode, with the missing countries option
+              if (showMissingCountries && !isGuessed) {
+                fillColor = "#FF6B6B"; // Red color for unguessed countries
+              } else if (isGuessed) {
+                fillColor = "#4bd670"; // Green for correct guesses
+              } else {
+                fillColor = "#FFF9C4"; // Default color
+              }
             } else {
-              // Multiplayer logic as before
+              // Multiplayer logic with missing countries option
               let isMyGuess = gameDataCountry?.filter(
                 (e) => normalizeCountryName(e.country) === normalizedFeatureName
               );
@@ -64,11 +72,14 @@ export default function MapView({
                 isMyGuess && (isMyGuess.length > 1
                   ? isMyGuess.find((e) => e.uid == currentUid)
                   : isMyGuess[0]);
-              fillColor = guessMine?.uid
-                ? guessMine.uid === currentUid
-                  ? "#4bd670"
-                  : "#10b1e6"
-                : "#FFF9C4";
+                  
+              if (showMissingCountries && !guessMine?.uid) {
+                fillColor = "#FF6B6B"; // Red for missing countries
+              } else if (guessMine?.uid) {
+                fillColor = guessMine.uid === currentUid ? "#4bd670" : "#10b1e6";
+              } else {
+                fillColor = "#FFF9C4"; // Default color
+              }
             }
             return (
               <Path

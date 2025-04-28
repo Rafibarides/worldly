@@ -9,7 +9,7 @@ import Animated, {
   useAnimatedStyle, 
   withTiming 
 } from 'react-native-reanimated';
-import { FriendsNavigator, SearchStackNavigator } from './AppNavigator';  // Import FriendsNavigator and SearchStackNavigator
+import { FriendsNavigator, SearchStackNavigator, GameStackNavigator as AppGameStackNavigator } from './AppNavigator';  // Import FriendsNavigator and SearchStackNavigator
 
 // Import screens
 import GameScreen from '../screens/Game/GameScreen';
@@ -23,6 +23,8 @@ import BadgesListScreen from '../screens/Badges/BadgesListScreen';
 import PendingRoomScreen from '../screens/Game/PendingRoomScreen';  // Add this import
 import CapitalsGame from '../screens/Game/CapitalsGame';
 import FlagsGame from '../screens/Game/FlagsGame';
+import GameDurationScreen from "../screens/Game/GameDurationScreen";
+import CountryOfTheDayScreen from '../screens/Country/CountryOfTheDayScreen';
 
 // NEW import for the settings screen
 import ProfileSettingsScreen from '../screens/Settings/ProfileSettingsScreen';
@@ -81,7 +83,7 @@ function FriendsStackNavigator() {
 }
 
 // Create a separate stack navigator for the Game screens
-function GameStackNavigator() {
+function LocalGameStackNavigator() {
   return (
     <GameStack.Navigator screenOptions={{ headerShown: false }}>
       <GameStack.Screen 
@@ -104,6 +106,16 @@ function GameStackNavigator() {
       <GameStack.Screen 
         name="FlagsGame" 
         component={FlagsGame}
+        options={{ headerShown: false }}
+      />
+      <GameStack.Screen 
+        name="GameDuration" 
+        component={GameDurationScreen} 
+        options={{ headerShown: false }}
+      />
+      <GameStack.Screen 
+        name="CountryOfTheDay" 
+        component={CountryOfTheDayScreen} 
         options={{ headerShown: false }}
       />
     </GameStack.Navigator>
@@ -191,7 +203,7 @@ export default function BottomTabNavigator() {
     >
       <Tab.Screen 
         name="Game" 
-        component={GameStackNavigator}
+        component={LocalGameStackNavigator}
         options={{ headerShown: false }}
       />
       <Tab.Screen

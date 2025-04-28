@@ -225,18 +225,12 @@ export default function GameScreen() {
     setSelectionModalVisible(false);
     
     if (gameType === 'countries') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        navigation.navigate("GamePlay", {
-          gameType: "solo",
-          settings: defaultGameSettings,
-        });
-      }, 500);
+      // Instead of navigating directly to GamePlay, go to duration selection
+      navigation.navigate("GameDuration", {
+        gameType: "solo",
+        settings: defaultGameSettings
+      });
     } else if (gameType === 'capitals') {
-      // Try directly navigating without reset
-      console.log('Attempting to navigate to CapitalsGame...');
-      
       // Just use regular navigation
       setIsLoading(true);
       setTimeout(() => {
@@ -245,8 +239,6 @@ export default function GameScreen() {
       }, 300);
     } else if (gameType === 'flags') {
       // Use the same pattern as for CapitalsGame
-      console.log('Attempting to navigate to FlagsGame...');
-      
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
@@ -708,13 +700,26 @@ export default function GameScreen() {
         </View>
 
         {/* Challenge Requests Button */}
-        <TouchableOpacity
-          style={styles.challengeRequestsButton}
-          onPress={() => setShowChallengeRequests(!showChallengeRequests)}
-        >
-          <MaterialIcons name="notifications" size={24} color="#fff" />
-          {challengeRequests.length > 0 && <View style={styles.challengeDot} />}
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.challengeRequestsButton}
+            onPress={() => setShowChallengeRequests(!showChallengeRequests)}
+          >
+            <MaterialIcons name="notifications" size={24} color="#fff" />
+            {challengeRequests.length > 0 && <View style={styles.challengeDot} />}
+          </TouchableOpacity>
+
+          {/* Location Button */}
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={() => {
+              // Navigate within the stack instead of trying to jump directly to the screen
+              navigation.navigate('CountryOfTheDay');
+            }}
+          >
+            <MaterialIcons name="location-on" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
         {/* Challenge Requests List */}
         {showChallengeRequests && (
@@ -997,13 +1002,13 @@ const styles = StyleSheet.create({
   },
   // NEW: Style for the challenge requests button (floating in the top right)
   challengeRequestsButton: {
-    position: "absolute",
-    top: 80,
-    right: 20,
-    backgroundColor: "#7dbc63",
-    padding: 10,
+    backgroundColor: '#7dbc63',
+    width: 43,
+    height: 43,
     borderRadius: 25,
-    zIndex: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   // NEW: Styles for the challenge requests container
   challengeRequestsContainer: {
@@ -1120,5 +1125,21 @@ const styles = StyleSheet.create({
     color: "#ffc268",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    position: 'absolute',
+    top: 80,
+    right: 20,
+    zIndex: 100,
+  },
+  locationButton: {
+    backgroundColor: '#7dbc63',
+    width: 43,
+    height: 43,
+    borderRadius: 25,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

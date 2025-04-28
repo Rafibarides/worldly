@@ -20,6 +20,7 @@ import Animated, {
   withSpring,
   withSequence,
   withDelay,
+  useAnimatedGestureHandler,
 } from "react-native-reanimated";
 import { MaterialIcons } from "@expo/vector-icons";
 import MapView from "../../components/MapView";
@@ -37,6 +38,11 @@ import socket from "../../services/socket";
 import { geoPath, geoNaturalEarth1 } from "d3-geo";
 import { Audio } from 'expo-av';
 import { useAudio } from '../../contexts/AudioContext';
+import {
+  PinchGestureHandler,
+  PanGestureHandler,
+  GestureHandlerRootView
+} from 'react-native-gesture-handler';
 
 let geoJSON;
 if (worldData.type === "Topology") {
@@ -81,15 +87,15 @@ const AnimatedView = Animated.createAnimatedComponent(View);
 const AnimatedText = Animated.createAnimatedComponent(Text);
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
-// Updated game duration in seconds: 30 seconds per game
-const GAME_DURATION = 900;
-
 export default function GamePlayScreen({ route, navigation }) {
-  const { gameType, challengeId, gameId } = route.params;
+  const { gameType, challengeId, gameId, duration } = route.params;
+  
+  // Use the selected duration or default to 15 minutes (900 seconds)
+  const gameDuration = duration || 900;
 
   const [guess, setGuess] = useState("");
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
+  const [timeLeft, setTimeLeft] = useState(gameDuration);
   const [gameData, setGameData] = useState(null);
   const [hasNavigated, setHasNavigated] = useState(false);
   const { currentUser, fetchCurrentUser } = useAuth();
@@ -161,7 +167,10 @@ export default function GamePlayScreen({ route, navigation }) {
   const toastOpacity = useSharedValue(0);
   const toastTranslate = useSharedValue(0);
 
-  const { musicEnabled } = useAudio();
+  const audioContext = useAudio();
+  const [localMusicEnabled, setLocalMusicEnabled] = useState(true);
+  const [backgroundMusic, setBackgroundMusic] = useState(null);
+  const backgroundMusicRef = useRef(null);
 
   useEffect(() => {
     if (gameType === "multiplayer") {
@@ -206,7 +215,7 @@ export default function GamePlayScreen({ route, navigation }) {
       // Function to update the remaining time.
       const updateRemainingTime = () => {
         const elapsed = Math.floor((Date.now() - startedAtMs) / 1000);
-        const newTimeLeft = GAME_DURATION - elapsed;
+        const newTimeLeft = gameDuration - elapsed;
         
         if (newTimeLeft <= 0) {
           clearInterval(timer);
@@ -234,7 +243,7 @@ export default function GamePlayScreen({ route, navigation }) {
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [gameData]);
+  }, [gameData, gameDuration]);
 
   // Add this separate effect to handle navigation when timeLeft reaches 0
   useEffect(() => {
@@ -442,100 +451,72 @@ export default function GamePlayScreen({ route, navigation }) {
 
   const handleTextChange = async (text) => {
     try {
-      let txt = text.trim().toLowerCase();
+      let txt = text.trim();
       setGuess(text);
+      
       if (txt) {
         if (!currentUser) {
           console.error("currentUser is undefined");
           return;
         }
-        const normalizedGuess = normalizeCountryName(text);
+        
+        const normalizedGuess = normalizeCountryName(txt);
+        
+        // First try to find the country in the map data
         const matchedFeature = filteredWorldData.features.find((feat) => {
           return normalizeCountryName(feat?.properties?.NAME) === normalizedGuess;
         });
-
-        if (matchedFeature) {
-          const countryName = matchedFeature.properties.NAME;
-          const normalizedCountryName = normalizeCountryName(countryName);
+        
+        // If not found in map data, check the recognized countries list
+        const isRecognizedCountry = recognizedCountries.recognized_countries.some(
+          (recCountry) => normalizeCountryName(recCountry) === normalizedGuess
+        );
+        
+        // Determine if this is a valid country - either from map or recognized list
+        const isValidCountry = matchedFeature || isRecognizedCountry;
+        
+        if (isValidCountry) {
+          // Get the standardized country name (from either source)
+          const countryName = matchedFeature 
+            ? matchedFeature.properties.NAME 
+            : recognizedCountries.recognized_countries.find(
+                c => normalizeCountryName(c) === normalizedGuess
+              );
+            
+          const normalizedCountryName = normalizeCountryName(countryName || txt);
           const alreadyGuessed = guessedCountries.includes(normalizedCountryName);
+          
           if (!alreadyGuessed) {
             const territories = getTerritoriesForCountry(normalizedCountryName);
+            
+            // Always update guessedCountries array for map filling
             setGuessedCountries((prev) => [
               ...prev,
               normalizedCountryName,
               ...territories,
             ]);
-            const list = [...(gameData?.scoreList ?? [])];
-            const countries = [...(gameData?.country ?? [])];
-            countries.push({ country: txt, uid: currentUser.uid });
-            let scoreIndex = list.findIndex((e) => e.uid === currentUser.uid);
-            if (scoreIndex !== -1) {
-              if (normalizedCountryName !== 'palestine') {
-                list[scoreIndex] = {
-                  ...list[scoreIndex],
-                  score: list[scoreIndex].score + 1,
-                };
-              }
-              setGuess("");
-              updateDoc(doc(database, "challenges", challengeId), {
-                scoreList: list,
-                country: countries,
-              }).catch(error => console.error("Error updating document:", error));
-            } else {
-              setGuess("");
-            }
-
-            const isRecognized = recognizedCountries.recognized_countries.some(
-              (recCountry) =>
-                normalizeCountryName(recCountry) === normalizedGuess
-            );
-            if (isRecognized && normalizedGuess !== 'palestine') {
-              setScore((prev) => prev + 1);
-              animateScore();
-              console.log("Game data set successfully!");
-            }
-          } else {
-            shakeInput();
-            showToast();
-          }
-        } else {
-          // If no matched feature is found, check if the country is recognized on its own.
-          const isRecognized = recognizedCountries.recognized_countries.some(
-            (recCountry) => normalizeCountryName(recCountry) === normalizedGuess
-          );
-          if (isRecognized) {
-            if (guessedCountries.includes(normalizedGuess)) {
-              // Already guessed – shake input and show toast.
-              shakeInput();
-              showToast();
-            } else {
-              // Add the normalized guess to the local guessedCountries array for both game modes.
-              setGuessedCountries((prev) => [...prev, normalizedGuess]);
-
-              if (gameType === "multiplayer") {
-                socket.emit("countryGuessed", {
-                  gameId,
-                  userId: currentUser.uid,
-                  country: normalizedGuess,
-                });
-              } else {
-                if (normalizedGuess !== 'palestine') {
-                  setScore((prev) => prev + 1);
-                  animateScore();
-                }
-              }
-
+            
+            // Update the scoring logic to only count the main country, not its territories
+            if (gameType !== "solo") {
+              // Multiplayer scoring
               const list = [...(gameData?.scoreList ?? [])];
               const countries = [...(gameData?.country ?? [])];
               countries.push({ country: txt, uid: currentUser.uid });
               let scoreIndex = list.findIndex((e) => e.uid === currentUser.uid);
+              
               if (scoreIndex !== -1) {
-                if (normalizedGuess !== 'palestine') {
+                // ONLY increment score if it's a recognized country (not a territory)
+                const isRecognizedCountry = recognizedCountries.recognized_countries.some(
+                  country => normalizeCountryName(country) === normalizedCountryName
+                );
+                
+                if (isRecognizedCountry && normalizedCountryName !== 'palestine') {
                   list[scoreIndex] = {
                     ...list[scoreIndex],
                     score: list[scoreIndex].score + 1,
                   };
                 }
+                
                 setGuess("");
                 updateDoc(doc(database, "challenges", challengeId), {
                   scoreList: list,
@@ -544,23 +525,27 @@ export default function GamePlayScreen({ route, navigation }) {
               } else {
                 setGuess("");
               }
+            } else {
+              // Solo mode scoring
+              // ONLY increment score if it's a recognized country (not a territory)
+              const isRecognizedCountry = recognizedCountries.recognized_countries.some(
+                country => normalizeCountryName(country) === normalizedCountryName
+              );
+              
+              if (isRecognizedCountry && normalizedCountryName !== 'palestine') {
+                setScore((prev) => prev + 1);
+                animateScore();
+              }
+              setGuess("");
             }
+          } else {
+            shakeInput();
+            showToast();
           }
-        }
-
-        if (normalizedGuess.includes("bosnia")) {
-          console.log("Normalized guess:", normalizedGuess);
-          console.log("Current guessedCountries:", guessedCountries);
-          
-          // Check if any feature matches this guess
-          const matchingFeature = filteredWorldData.features.find(feat => 
-            normalizeCountryName(feat?.properties?.NAME) === normalizedGuess
-          );
-          console.log("Matching feature:", matchingFeature?.properties?.NAME);
         }
       }
     } catch (error) {
-      console.log("🚀 ~ handleTextChange ~ error:", error);
+      console.error("Error in handleTextChange:", error);
     }
   };
 
@@ -585,15 +570,27 @@ export default function GamePlayScreen({ route, navigation }) {
   };
 
   const [containerHeight, setContainerHeight] = useState(0);
+  const [mapWidth, setMapWidth] = useState(0);
 
-  // Handle layout to measure container height
+  // Add boundary constraints for the map position
+  // First, define boundaries based on the container size
+  const [mapBounds, setMapBounds] = useState({
+    width: 0,
+    height: 0
+  });
+
+  // Update the onContainerLayout function to capture the map dimensions
   const onContainerLayout = useCallback((e) => {
-    const { height } = e.nativeEvent.layout;
+    const { width, height } = e.nativeEvent.layout;
     setContainerHeight(height);
+    setMapWidth(width * 2);
+    
+    // Save the bounds for constraint calculations
+    setMapBounds({
+      width: width,
+      height: height
+    });
   }, []);
-
-  // Calculate the map width based on the container height and world aspect ratio
-  const mapWidth = containerHeight * 2;
 
   // Memoize the generated paths to avoid recalculating on every render
   const countryPaths = useMemo(() => {
@@ -614,46 +611,24 @@ export default function GamePlayScreen({ route, navigation }) {
   }, [containerHeight, mapWidth]);
 
   const handleExitGame = () => {
-    // Immediately stop the background music
-    if (backgroundMusicRef.current) {
-      try {
-        // Use stopAsync and unloadAsync immediately without waiting for the async operation
-        backgroundMusicRef.current.stopAsync();
-        backgroundMusicRef.current.unloadAsync();
-        backgroundMusicRef.current = null;
-        setBackgroundMusic(null);
-      } catch (error) {
-        console.error("Error stopping background music:", error);
-      }
-    }
-    
-    // Show confirmation dialog
     Alert.alert(
       "Exit Game",
       "Are you sure you want to exit? Your progress will be lost.",
       [
         {
           text: "Cancel",
-          style: "cancel",
-          onPress: () => {
-            // If user cancels, restart the music if it was enabled
-            if (musicEnabled) {
-              playBackgroundMusic();
-            }
-          }
+          style: "cancel"
         },
-        {
-          text: "Exit",
-          style: "destructive",
+        { 
+          text: "Exit", 
           onPress: () => {
-            // For multiplayer games, notify the server that the player has left
-            if (gameType === "multiplayer" && gameId) {
-              socket.emit("leaveGame", { gameId, userId: currentUser.uid });
-            }
-            
-            // Navigate back to the main game screen
-            navigation.goBack();
-          }
+            // Use navigation.reset to clear history and go back to GameScreen
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Game' }],
+            });
+          },
+          style: "destructive"
         }
       ]
     );
@@ -713,14 +688,10 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   }, [score, gameData, gameType, gameIsOver, currentUser, challengeId, navigation, recognizedCountries, guessedCountriesRef, gameId]);
 
-  // Add this state and ref for the background music
-  const [backgroundMusic, setBackgroundMusic] = useState(null);
-  const backgroundMusicRef = useRef(null);
-
   // Update the playBackgroundMusic function to check the preference
   const playBackgroundMusic = async () => {
     // Don't play music if the user has disabled it
-    if (!musicEnabled) return;
+    if (!localMusicEnabled) return;
     
     try {
       // Unload any existing sound first
@@ -744,14 +715,27 @@ export default function GamePlayScreen({ route, navigation }) {
     }
   };
 
-  // Add this effect to respond to changes in the music preference
-  useEffect(() => {
-    if (musicEnabled) {
+  // Replace the existing toggleMusic function with this one
+  const toggleMusic = () => {
+    const newMusicState = !localMusicEnabled;
+    setLocalMusicEnabled(newMusicState);
+    
+    if (newMusicState) {
       playBackgroundMusic();
     } else {
       stopBackgroundMusic();
     }
-  }, [musicEnabled]);
+  };
+
+  // Update the useEffect to use the appropriate musicEnabled value
+  useEffect(() => {
+    const isMusicEnabled = audioContext?.musicEnabled ?? localMusicEnabled;
+    if (isMusicEnabled) {
+      playBackgroundMusic();
+    } else {
+      stopBackgroundMusic();
+    }
+  }, [audioContext?.musicEnabled, localMusicEnabled]);
 
   // Add this effect to stop the music when the game ends
   useEffect(() => {
@@ -762,15 +746,15 @@ export default function GamePlayScreen({ route, navigation }) {
 
   // Add the stopBackgroundMusic function that's missing
   const stopBackgroundMusic = async () => {
-    if (backgroundMusicRef.current) {
-      try {
+    try {
+      if (backgroundMusicRef.current) {
         await backgroundMusicRef.current.stopAsync();
         await backgroundMusicRef.current.unloadAsync();
         backgroundMusicRef.current = null;
         setBackgroundMusic(null);
-      } catch (error) {
-        console.error("Error stopping background music:", error);
       }
+    } catch (error) {
+      console.error("Error stopping background music:", error);
     }
   };
 
@@ -859,6 +843,77 @@ export default function GamePlayScreen({ route, navigation }) {
     setModalVisible(true);
   };
 
+  // Inside the component, add state for zoom and pan
+  const [mapScale, setMapScale] = useState(1);
+  const [mapTranslateX, setMapTranslateX] = useState(0);
+  const [mapTranslateY, setMapTranslateY] = useState(0);
+
+  // Add these animated values
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedScale = useSharedValue(1);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // Handle pinch gesture
+  const onPinchGestureEvent = useAnimatedGestureHandler({
+    onStart: (_, ctx) => {
+      ctx.startScale = scale.value;
+    },
+    onActive: (event, ctx) => {
+      // Change minimum scale from 0.5 to 1.0 to prevent zooming out smaller than original
+      const newScale = ctx.startScale * event.scale;
+      scale.value = Math.min(Math.max(newScale, 1.0), 5);
+    },
+    onEnd: () => {
+      // If somehow the scale ended up below 1, snap it back to 1
+      if (scale.value < 1) {
+        scale.value = withSpring(1);
+      }
+      savedScale.value = scale.value;
+    },
+  });
+
+  // Then update the pan gesture handler to constrain movement
+  const onPanGestureEvent = useAnimatedGestureHandler({
+    onStart: (_, ctx) => {
+      ctx.startX = translateX.value;
+      ctx.startY = translateY.value;
+    },
+    onActive: (event, ctx) => {
+      // Calculate maximum allowed pan distance based on scale
+      const maxPanX = mapBounds.width * (scale.value - 1) / 2;
+      const maxPanY = mapBounds.height * (scale.value - 1) / 2;
+      
+      // Calculate new position with constraints
+      const newX = ctx.startX + event.translationX / scale.value;
+      const newY = ctx.startY + event.translationY / scale.value;
+      
+      // Apply constraints - more restrictive when zoomed out, more freedom when zoomed in
+      translateX.value = Math.min(Math.max(newX, -maxPanX), maxPanX);
+      translateY.value = Math.min(Math.max(newY, -maxPanY), maxPanY);
+    },
+    onEnd: () => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    },
+  });
+
+  // Create an animated style for the map container
+  const mapZoomStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value }
+      ]
+    };
+  });
+
+  // Add a new state variable to track visibility of missing countries
+  const [showMissingCountries, setShowMissingCountries] = useState(false);
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: 60 }]}
@@ -873,47 +928,122 @@ export default function GamePlayScreen({ route, navigation }) {
       </TouchableOpacity>
 
       <View style={styles.header}>
-        <View style={styles.timerContainer}>
-          <MaterialIcons name="timer" size={24} color="#666" />
-          <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
-        </View>
-        {gameType === "solo" ? (
-          <Text style={styles.score}>
-            Guessed: {guessedCountries.length} countries
-          </Text>
-        ) : (
-          <View style={styles.scoreCardsContainer}>
-            {!!gameData?.scoreList?.length &&
-              gameData?.scoreList?.map((e) => {
-                let isCur = e.uid === currentUser.uid;
-                return (
-                  <TouchableOpacity
-                    key={e.uid}
-                    onPress={() => handleCardPress({ ...e, isCur: e.uid === currentUser.uid })}
-                  >
-                    <Animated.View 
-                      style={[
-                        styles.scoreCard, 
-                        isCur ? styles.userScoreCard : styles.opponentScoreCard,
-                        isCur ? userScoreAnimatedStyle : opponentScoreAnimatedStyle
-                      ]}
+        <View style={styles.scoreboardContainer}>
+          {/* Display score for solo mode */}
+          {gameType === "solo" ? (
+            <>
+              {/* Left: Solo score with fixed width */}
+              <View style={{width: 120, alignItems: 'center'}}>
+                <Text style={styles.score}>
+                  {score} countries
+                </Text>
+              </View>
+              
+              {/* Middle: Timer */}
+              <View style={styles.centeredTimerContainer}>
+                <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
+              </View>
+              
+              {/* Right: Empty space for balance with same width as left */}
+              <View style={{width: 120}}></View>
+            </>
+          ) : (
+            <>
+              {/* Left: User card */}
+              {!!gameData?.scoreList?.length && 
+                gameData.scoreList
+                  .filter(e => e.uid === currentUser.uid)
+                  .map(e => (
+                    <TouchableOpacity
+                      key={e.uid}
+                      onPress={() => handleCardPress({ ...e, isCur: true })}
                     >
-                      <Text 
-                        style={styles.playerName}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
+                      <Animated.View 
+                        style={[
+                          styles.scoreCard, 
+                          styles.userScoreCard,
+                          userScoreAnimatedStyle
+                        ]}
                       >
-                        {isCur ? "You" : gameData?.opponentUsername || "Challenger"}
-                      </Text>
-                      <Text style={styles.playerScore}>
-                        {e.score}/196
-                      </Text>
-                    </Animated.View>
-                  </TouchableOpacity>
-                );
-              })}
-          </View>
-        )}
+                        <Text 
+                          style={styles.playerName}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          You
+                        </Text>
+                        <Text style={styles.playerScore}>
+                          {e.score}/196
+                        </Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  ))
+              }
+              
+              {/* Middle: Timer */}
+              <View style={styles.centeredTimerContainer}>
+                <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
+              </View>
+              
+              {/* Right: Opponent card */}
+              {!!gameData?.scoreList?.length && 
+                gameData.scoreList
+                  .filter(e => e.uid !== currentUser.uid)
+                  .map(e => (
+                    <TouchableOpacity
+                      key={e.uid}
+                      onPress={() => handleCardPress({ ...e, isCur: false })}
+                    >
+                      <Animated.View 
+                        style={[
+                          styles.scoreCard, 
+                          styles.opponentScoreCard,
+                          opponentScoreAnimatedStyle
+                        ]}
+                      >
+                        <Text 
+                          style={styles.playerName}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {gameData?.opponentUsername || "Challenger"}
+                        </Text>
+                        <Text style={styles.playerScore}>
+                          {e.score}/196
+                        </Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  ))
+              }
+            </>
+          )}
+        </View>
+      </View>
+
+      {/* Vertical toggle buttons on the right */}
+      <View style={styles.toggleButtonsContainer}>
+        <TouchableOpacity 
+          style={styles.toggleButton} 
+          onPress={toggleMusic}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons 
+            name={localMusicEnabled ? "music-note" : "music-off"} 
+            size={22} 
+            color="#fff" 
+          />
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.toggleButton}
+          onPress={() => setShowMissingCountries(!showMissingCountries)}
+        >
+          <MaterialIcons
+            name={showMissingCountries ? "visibility" : "visibility-off"}
+            size={24}
+            color="#fff"
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.inputSection}>
@@ -934,18 +1064,29 @@ export default function GamePlayScreen({ route, navigation }) {
         <Text style={styles.toastText}>- Already Guessed</Text>
       </Animated.View>
 
-      <AnimatedView style={[{ flex: 1 }, mapContainerStyle]}>
-        <MapView
-          onContainerLayout={onContainerLayout}
-          guessedCountries={guessedCountries}
-          mapWidth={mapWidth}
-          gameDataCountry={gameData?.country || []}
-          containerHeight={containerHeight}
-          currentUid={currentUser.uid}
-          countryPaths={countryPaths}
-          gameType={gameType}
-        />
-      </AnimatedView>
+      <View style={styles.gameMapContainer}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <PinchGestureHandler onGestureEvent={onPinchGestureEvent}>
+            <Animated.View style={{ flex: 1 }}>
+              <PanGestureHandler onGestureEvent={onPanGestureEvent}>
+                <Animated.View style={[styles.mapBackgroundContainer, mapZoomStyle]}>
+                  <MapView 
+                    onContainerLayout={onContainerLayout}
+                    containerHeight={containerHeight}
+                    countryPaths={countryPaths}
+                    guessedCountries={guessedCountries}
+                    gameType={gameType}
+                    mapWidth={mapWidth}
+                    gameDataCountry={gameData?.country || []}
+                    currentUid={currentUser?.uid}
+                    showMissingCountries={showMissingCountries}
+                  />
+                </Animated.View>
+              </PanGestureHandler>
+            </Animated.View>
+          </PinchGestureHandler>
+        </GestureHandlerRootView>
+      </View>
 
       <Modal
         animationType="fade"
@@ -1013,27 +1154,57 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    width: '100%',
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-  timerContainer: {
+  scoreboardContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  scoreCardsContainer: {
     flexDirection: "row",
+    justifyContent: "flex-start",
+    gap: 10,
+  },
+  scoreCard: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    width: 120,
+    height: 60,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  userScoreCard: {
+    backgroundColor: "#92c47b", // Green color for user's card
+  },
+  opponentScoreCard: {
+    backgroundColor: "#0089c2", // Blue color for opponent's card
+  },
+  playerName: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+    width: "100%",
+    textAlign: "center",
+  },
+  playerScore: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  centeredTimerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timer: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginLeft: 8,
-    color: "#666",
-  },
-  score: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "rgb(101, 161, 42)",
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
   },
   inputSection: {
     paddingHorizontal: 10,
@@ -1073,39 +1244,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  scoreCardsContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
+  toggleButtonsContainer: {
+    position: 'absolute',
+    right: 6,
+    top: 230, // Increased from 120 to 180 to move them lower
+    zIndex: 10,
+    flexDirection: 'column',
+    alignItems: 'center',
   },
-  scoreCard: {
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    width: 120,
-    height: 60,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  userScoreCard: {
-    backgroundColor: "#92c47b", // Updated green color for user's card
-  },
-  opponentScoreCard: {
-    backgroundColor: "#0089c2", // Updated blue color for opponent's card
-  },
-  playerName: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "500",
-    width: "100%",
-    textAlign: "center",
-    numberOfLines: 1,
-    ellipsizeMode: "tail",
-  },
-  playerScore: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+  toggleButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 5,
   },
   modalOverlay: {
     flex: 1,
@@ -1161,37 +1315,31 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  // Modal header "X" (close button) updated to use game-yellow (#ffc268)
-  closeButton: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#ffc268", // yellow shade used throughout the game
+  mapWrapper: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#2D7DD2', // Add back the blue ocean color
+    borderRadius: 10, // Optional: rounded corners for the map area
   },
-  // For global missed countries header, we wrap the continent title in a green pill
-  missedHeaderContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 15,
-    marginBottom: 5,
-    alignSelf: "flex-start",
+  mapContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2D7DD2', // Also add the blue color here for consistency
   },
-  // The pill container for continent titles
-  continentTitlePill: {
-    backgroundColor: "#7dbc63", // green shade used in our game
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+  gameMapContainer: {
+    flex: 1,
+    width: '100%',
+    marginVertical: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#2D7DD2', // Blue ocean color
   },
-  // The text inside the green pill (white and bold)
-  missedCountriesHeader: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  // For the badge icon next to the header (if needed)
-  continentBadgeIcon: {
-    width: 20,
-    height: 20,
-    marginLeft: 5,
+  mapBackgroundContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#2D7DD2', // Keep blue background here
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Animated as RNAnimated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from "@expo/vector-icons";
 import Animated, {
@@ -18,6 +18,7 @@ import { doc, updateDoc, increment } from 'firebase/firestore';
 import { database } from '../../services/firebase';
 import LivesModal from './LivesModal';
 import HintModal from './HintModal';
+import { Audio } from 'expo-av';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -78,6 +79,18 @@ export default function FlagsGame() {
 
   // Add this state variable
   const [hintModalVisible, setHintModalVisible] = useState(false);
+
+  // Add state for toast message
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+  
+  // Animation value for toast
+  const toastOpacity = useRef(new RNAnimated.Value(0)).current;
+
+  // Add sound references
+  const correctSound = useRef(null);
+  const incorrectSound = useRef(null);
 
   // Get all country-flag pairs from all continents
   const getAllCountryFlagPairs = () => {
@@ -146,8 +159,44 @@ export default function FlagsGame() {
     generateRound();
   }, []);
   
+  // Load sound effects
+  useEffect(() => {
+    const loadSounds = async () => {
+      try {
+        const correctSoundObject = new Audio.Sound();
+        const incorrectSoundObject = new Audio.Sound();
+        
+        await correctSoundObject.loadAsync(require('../../../assets/sound/correct.wav'));
+        await incorrectSoundObject.loadAsync(require('../../../assets/sound/Incorrect.wav'));
+        
+        correctSound.current = correctSoundObject;
+        incorrectSound.current = incorrectSoundObject;
+      } catch (error) {
+        console.error('Error loading sounds:', error);
+      }
+    };
+    
+    loadSounds();
+    
+    // Cleanup function to unload sounds when component unmounts
+    return () => {
+      const unloadSounds = async () => {
+        if (correctSound.current) {
+          await correctSound.current.unloadAsync();
+        }
+        if (incorrectSound.current) {
+          await incorrectSound.current.unloadAsync();
+        }
+      };
+      unloadSounds();
+    };
+  }, []); // Run only once on component mount
+
   // Handle user selection
-  const handleSelection = (selectedCountry) => {
+  const handleSelection = async (selectedCountry) => {
+    // Set the selected option to highlight it
+    setSelectedOption(selectedCountry);
+    
     // Animate the selected option
     const optionIndex = options.indexOf(selectedCountry);
     if (optionIndex >= 0) {
@@ -161,8 +210,34 @@ export default function FlagsGame() {
     setShowCorrectAnswer(true);
     
     if (selectedCountry === correctCountry) {
+      // Correct answer - play sound
+      if (correctSound.current) {
+        try {
+          await correctSound.current.replayAsync();
+        } catch (error) {
+          console.error('Error playing correct sound:', error);
+        }
+      }
+      
       // Correct answer
       setScore(prev => prev + 1);
+      
+      // Show toast message
+      setToastMessage("Correct!");
+      setToastVisible(true);
+      RNAnimated.sequence([
+        RNAnimated.timing(toastOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }),
+        RNAnimated.delay(1000),
+        RNAnimated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true
+        })
+      ]).start(() => setToastVisible(false));
       
       // Update continent score
       setContinentScores(prev => ({
@@ -173,15 +248,42 @@ export default function FlagsGame() {
       // Track continents played
       continentsPlayed.current.add(currentContinent);
       
-      // Generate new round after a short delay to let user see the green highlight
+      // Generate new round after a longer delay to let user see the feedback
       setTimeout(() => {
         setShowCorrectAnswer(false); // Reset for next round
+        setSelectedOption(null); // Reset selected option
         roundsPlayed.current += 1;
         generateRound();
-      }, 800); // Slightly longer delay to show the correct answer
+      }, 1500); // Longer delay to show the feedback
     } else {
+      // Incorrect answer - play sound
+      if (incorrectSound.current) {
+        try {
+          await incorrectSound.current.replayAsync();
+        } catch (error) {
+          console.error('Error playing incorrect sound:', error);
+        }
+      }
+      
       // Incorrect answer
       setLives(prev => prev - 1);
+      
+      // Show toast message
+      setToastMessage("Wrong answer!");
+      setToastVisible(true);
+      RNAnimated.sequence([
+        RNAnimated.timing(toastOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }),
+        RNAnimated.delay(1000),
+        RNAnimated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true
+        })
+      ]).start(() => setToastVisible(false));
       
       // Animate lives container
       livesContainerScale.value = withSequence(
@@ -211,14 +313,15 @@ export default function FlagsGame() {
       if (lives <= 1) {
         setTimeout(() => {
           handleGameOver();
-        }, 800); // Longer delay to show the correct answer
+        }, 1500); // Longer delay to show the feedback
       } else {
         // Generate new round with delay
         setTimeout(() => {
           setShowCorrectAnswer(false); // Reset for next round
+          setSelectedOption(null); // Reset selected option
           roundsPlayed.current += 1;
           generateRound();
-        }, 800); // Longer delay to show the correct answer
+        }, 1500); // Longer delay to show the feedback
       }
     }
   };
@@ -261,7 +364,26 @@ export default function FlagsGame() {
   
   // Handle exit game
   const handleExitGame = () => {
-    navigation.goBack();
+    Alert.alert(
+      "Exit Game",
+      "Are you sure you want to exit? Your progress will be lost.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Exit", 
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Game' }],
+            });
+          },
+          style: "destructive"
+        }
+      ]
+    );
   };
 
   // Create animated styles for the modal hearts
@@ -306,6 +428,13 @@ export default function FlagsGame() {
 
   return (
     <View style={[styles.container, { backgroundColor: "#87c66b" }]}>
+      {/* Toast Message */}
+      {toastVisible && (
+        <RNAnimated.View style={[styles.toastContainer, { opacity: toastOpacity }]}>
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </RNAnimated.View>
+      )}
+      
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.exitButton}
@@ -349,7 +478,8 @@ export default function FlagsGame() {
               style={[
                 styles.optionButton, 
                 optionAnimatedStyles[index],
-                showCorrectAnswer && option === correctCountry ? styles.correctOptionButton : null
+                showCorrectAnswer && option === correctCountry ? styles.correctOptionButton : null,
+                showCorrectAnswer && option === selectedOption && option !== correctCountry ? styles.incorrectOptionButton : null,
               ]}
               onPress={() => handleSelection(option)}
             >
@@ -357,7 +487,8 @@ export default function FlagsGame() {
                 <Text 
                   style={[
                     styles.optionText,
-                    showCorrectAnswer && option === correctCountry ? styles.correctOptionText : null
+                    showCorrectAnswer && option === correctCountry ? styles.correctOptionText : null,
+                    showCorrectAnswer && option === selectedOption && option !== correctCountry ? styles.incorrectOptionText : null,
                   ]}
                   numberOfLines={2}
                   adjustsFontSizeToFit={true}
@@ -536,8 +667,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#8dcc73',
     borderColor: '#fff',
     borderWidth: 2,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
   },
   correctOptionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  incorrectOptionButton: {
+    backgroundColor: '#ff6b6b',
+    borderColor: '#fff',
+    borderWidth: 2,
+  },
+  incorrectOptionText: {
     color: '#fff',
     fontWeight: 'bold',
   },
@@ -605,5 +750,20 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 100,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    zIndex: 1000,
+  },
+  toastText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

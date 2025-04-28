@@ -9,6 +9,9 @@ import FriendSearchScreen from "../screens/Friends/FriendSearchScreen";
 import { TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native"
+import GameDurationScreen from "../screens/Game/GameDurationScreen";
+import UserFriendsListScreen from "../screens/Friends/UserFriendsListScreen";
+import CountryOfTheDayScreen from "../screens/Country/CountryOfTheDayScreen";
 
 const Stack = createStackNavigator();
 const SearchStack = createStackNavigator();
@@ -71,6 +74,25 @@ export function FriendsNavigator() {
           },
         }}
       />
+      <Stack.Screen
+        name="UserFriendsList"
+        component={UserFriendsListScreen}
+        options={{
+          headerTitle: "",
+          headerBackTitleVisible: false,
+          headerLeft: ({ onPress }) => (
+            <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+              <MaterialIcons name="arrow-back-ios" size={24} color="#ffc268" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: "#fff",
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -102,7 +124,48 @@ export function SearchStackNavigator() {
           },
         }}
       />
+      <SearchStack.Screen
+        name="UserFriendsList"
+        component={UserFriendsListScreen}
+        options={{
+          headerTitle: "",
+          headerBackTitleVisible: false,
+          headerLeft: ({ onPress }) => (
+            <TouchableOpacity onPress={onPress} style={{ marginLeft: 16 }}>
+              <MaterialIcons name="arrow-back-ios" size={24} color="#ffc268" />
+            </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: "#fff",
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
+        }}
+      />
     </SearchStack.Navigator>
+  );
+}
+
+export function GameStackNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="GameHome"
+        component={GameScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GameDuration"
+        component={GameDurationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CountryOfTheDay"
+        component={CountryOfTheDayScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
   );
 }
 

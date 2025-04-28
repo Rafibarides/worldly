@@ -31,6 +31,8 @@ export default function ProfileView({
   friendshipStatus,
   onAddFriend,
   showChallenge,
+  friendCount = 0,
+  onFriendsPress,
 }) {
   const navigation = useNavigation();
   const { currentUser, setCurrentUser } = useAuth();
@@ -317,16 +319,25 @@ export default function ProfileView({
             </TouchableOpacity>
           )}
           <View style={styles.usernameContainer}>
-            <Text style={styles.username}>{user?.username || 'User'}</Text>
-            {user?.continentsTracked && Object.keys(user.continentsTracked).length === 6 && (
-              <TouchableOpacity 
-                onPress={() => setTrophyModalVisible(true)}
-                style={styles.trophyContainer}
-              >
-                <Image 
-                  source={require("../../assets/images/trophy.png")} 
-                  style={styles.trophyIcon} 
-                />
+            <View style={styles.usernameRow}>
+              <Text style={styles.username}>{user?.username || 'User'}</Text>
+              {user?.continentsTracked && Object.keys(user.continentsTracked).length === 6 && (
+                <TouchableOpacity 
+                  onPress={() => setTrophyModalVisible(true)}
+                  style={styles.trophyContainer}
+                >
+                  <Image 
+                    source={require("../../assets/images/trophy.png")} 
+                    style={styles.trophyIcon} 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+            {!isCurrentUser && (
+              <TouchableOpacity onPress={onFriendsPress}>
+                <Text style={styles.friendsCount}>
+                  {friendCount} {friendCount === 1 ? 'Friend' : 'Friends'}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -605,6 +616,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   usernameContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -932,6 +948,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  friendsCount: {
+    fontSize: 16,
+    color: '#ffffff',
+    marginTop: 5,
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });
   

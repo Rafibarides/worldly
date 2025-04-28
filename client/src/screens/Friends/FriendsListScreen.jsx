@@ -318,6 +318,7 @@ export default function FriendsListScreen({ navigation }) {
           keyExtractor={(item) => item.uid}
           onRefresh={onRefresh}
           refreshing={refreshing}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <View style={styles.friendItem}>
               <View style={styles.userInfo}>
@@ -336,6 +337,7 @@ export default function FriendsListScreen({ navigation }) {
                   style={{ marginLeft: 8 }}
                 >
                   <Text style={styles.username}>{item.username}</Text>
+                  <Text style={styles.userLevel}>Level {item.level || 1}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.friendActions}>
@@ -463,5 +465,10 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: "red",
+  },
+  userLevel: {
+    fontSize: 12,
+    color: '#444138',
+    marginTop: 2,
   },
 });

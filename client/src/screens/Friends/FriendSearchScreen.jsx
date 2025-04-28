@@ -460,6 +460,7 @@ export default function FriendSearchScreen() {
                   onPress={() => handleViewProfile(item)}
                 >
                   <Text style={styles.username}>{item.username}</Text>
+                  <Text style={styles.userLevel}>Level {item.level || 1}</Text>
                 </TouchableOpacity>
               </View>
               
@@ -754,5 +755,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 20,
     fontSize: 16,
+  },
+  userLevel: {
+    fontSize: 12,
+    color: '#444138',
+    marginTop: 2,
   },
 }); 

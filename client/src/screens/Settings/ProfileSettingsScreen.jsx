@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAudio } from '../../contexts/AudioContext';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { database, auth } from '../../services/firebase';
+import Feedback from './Feedback';
 
 export default function ProfileSettingsScreen({ navigation }) {
   const { currentUser, logout } = useAuth();
@@ -173,6 +174,8 @@ export default function ProfileSettingsScreen({ navigation }) {
           <Text style={[styles.settingText, { color: '#ff6b6b' }]}>Sign Out</Text>
         </View>
       </TouchableOpacity>
+      
+      <Feedback />
       
       {/* Add some bottom padding to ensure everything is visible */}
       <View style={styles.bottomPadding} />

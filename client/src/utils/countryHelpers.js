@@ -346,8 +346,8 @@ export const geoJSONNameMap = {
   // --- Additional failsafe entries for St. Lucia, St. Vincent, and St. Kitts ---
   'stlucia': 'St. Lucia',
   'saintlucia': 'St. Lucia',
-  'stvincent': 'St. Vin. and Gren.',
-  'saintvincent': 'St. Vin. and Gren.',
+  'stvincent': 'St. Vincent and the Grenadines',
+  'saintvincent': 'St. Vincent and the Grenadines',
   'stkitts': 'St. Kitts and Nevis',
   'saintkitts': 'St. Kitts and Nevis',
   'stkittsandnevis': 'St. Kitts and Nevis',
@@ -426,135 +426,280 @@ const aliasMapping = {
   "dominican rep": "dominican rep.",
 };
 
-// Updated normalizeCountryName function
-export const normalizeCountryName = (name) => {
-  if (!name || typeof name !== 'string') return '';
-
-  // First, handle special cases explicitly to ensure consistent normalization
-  if (name.includes("Ivory Coast") || name.includes("Côte d'Ivoire")) {
-    return "cotedivoire";
-  }
-  if (name.includes("Eswatini") || name.includes("Swaziland")) {
-    return "eswatini";
-  }
-  if (name.includes("São Tomé") || name.includes("Sao Tome")) {
-    return "saotomeandprincipe";
-  }
-  if (name.includes("Czech") || name.includes("Czechia")) {
-    return "czechrepublic";
-  }
-  if (name.includes("Myanmar") || name.includes("Burma")) {
-    return "myanmar";
-  }
-
-  // Remove parenthetical content
-  let normalized = name.replace(/\s*\(.*?\)/g, '').trim();
+// Modify the normalizeCountryName function to handle DR and DRC specifically
+export function normalizeCountryName(name) {
+  if (!name) return "";
   
-  // Lowercase
-  normalized = normalized.toLowerCase();
-
-  // Remove diacritics (accents)
-  normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // Remove punctuation and extra whitespace
-  normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()']/g, '');
-  normalized = normalized.replace(/\s+/g, '');
-
-  // Special case for Bosnia and Herzegovina - handle potential abbreviations in GeoJSON
-  if (normalized.includes("bosnia") || normalized.includes("herzegovina") || 
-      normalized.includes("herz")) {
-    return "bosniaandherzegovina";
-  }
-
-  // Handle island abbreviations
-  if (normalized.includes("islands") || normalized.includes("is.") || normalized.endsWith(" is")) {
-    // Convert "islands", "is.", and " is" to a consistent form
-    normalized = normalized.replace(/\bis\b|\bis\.$|islands/g, "islands");
-  }
-
-  // Handle island nations specifically to prevent duplicate points
-  if (normalized.includes("Marshall") || normalized.toLowerCase().includes("marshall")) {
-    return "marshallislands";
-  }
-  if (normalized.includes("Solomon") || normalized.toLowerCase().includes("solomon")) {
-    return "solomonislands";
-  }
-
-  // Define aliases to map commonly used variants to a canonical name
-  const aliases = {
-    'us': 'unitedstatesofamerica',
-    'usa': 'unitedstatesofamerica',
-    'america': 'unitedstatesofamerica',
-    'unitedstates': 'unitedstatesofamerica',
-    'unitedstatesofamerica': 'unitedstatesofamerica',
-    'uk': 'unitedkingdom',
-    'greatbritain': 'unitedkingdom',
-    'england': 'unitedkingdom',
-    'brasil': 'brazil',
-    'brazil': 'brazil',
-    'burma': 'myanmar',
-    'myanmar': 'myanmar',
-    'myanmarburma': 'myanmar',
-    'kazakhstan': 'kazakstan',
-    'uae': 'unitedarabemirates',
-    'car': 'centralafricanrepublic',
-    'centralafricanrep': 'centralafricanrepublic',
-    'dr': "dominicanrepublic",
-    'drc': 'democraticrepublicofthecongo',
-    'democraticrepublicofthecongo': 'democraticrepublicofthecongo',
-    'republicofthecongo': 'republicofthecongo',
-    'congo': 'republicofthecongo',
-    'denmark': 'greenland',
-    'ivorycoast': 'cotedivoire',
-    'cotedivoire': 'cotedivoire',
-    'coted': 'cotedivoire',
-    'cotedivoir': 'cotedivoire',
-    'cotedivior': 'cotedivoire',
-    'coteivoire': 'cotedivoire',
-    'cotedeivoire': 'cotedivoire',
-    'côtedivoire': 'cotedivoire',
-    'côtedivoir': 'cotedivoire',
-    'eswatini': 'eswatini',
-    'swaziland': 'eswatini',
-    'saotome': 'saotomeandprincipe',
-    'saotomeandprincipe': 'saotomeandprincipe',
-    'czechrepublic': 'czechrepublic',
-    'czechia': 'czechrepublic',
-    'czech': 'czechrepublic',
-    // --- Existing aliases for Bosnia (unchanged) ---
-    'bosnia': 'bosniaandherzegovina',
-    'herzegovina': 'bosniaandherzegovina',
-    'bosniaherzegovina': 'bosniaandherzegovina',
-    'bosniaherz': 'bosniaandherzegovina',
-    'bosniaandherz': 'bosniaandherzegovina',
-    // --- NEW ENTRIES to restore St. Vincent and Antigua ---
-    'stvincent': 'saintvincentandthegrenadines',
-    'saintvincent': 'saintvincentandthegrenadines',
-    'antigua': 'antiguaandbarbuda',
-    'antiguaandbarbuda': 'antiguaandbarbuda',
-    'barbuda': 'antiguaandbarbuda',
-    // Island nations - ensure consistent normalization
-    'marshallislands': 'marshallislands',
-    'marshallis': 'marshallislands',
-    'marshallisles': 'marshallislands',
-    'marshall islands': 'marshallislands',
-    'marshall is': 'marshallislands',
-    'marshall is.': 'marshallislands',
+  // Special handling for DRC with more comprehensive matching
+  if (name.toLowerCase().includes("congo") && 
+     (name.toLowerCase().includes("dr") || 
+      name.toLowerCase().includes("dem") || 
+      name.toLowerCase().includes("democratic"))) {
     
-    'solomonislands': 'solomonislands',
-    'solomonis': 'solomonislands',
-    'solomonisles': 'solomonislands',
-    'solomon islands': 'solomonislands',
-    'solomon is': 'solomonislands',
-    'solomon is.': 'solomonislands',
-  };
-
-  // After all the normalization steps, check if we need to map to a GeoJSON name
-  const normalizedForScoring = aliases[normalized] || normalized;
+    // This is the EXACT format needed to match the GeoJSON data
+    return "Dem. Rep. Congo";
+  }
   
-  // Return the GeoJSON name if it exists, otherwise return the normalized name
-  return geoJSONNameMap[normalizedForScoring] || normalizedForScoring;
-};
+  // Handle just "DRC" as an abbreviation
+  if (name.toLowerCase() === "drc") {
+    return "Dem. Rep. Congo";
+  }
+  
+  // Special handling for problematic countries
+  if (name.toLowerCase().includes("dr") && name.toLowerCase().includes("congo")) {
+    return "Dem. Rep. Congo";  // EXACT match with capitalization in GeoJSON
+  }
+  if (name.toLowerCase() === "dr" || (name.toLowerCase().includes("dominican") && name.toLowerCase().includes("rep"))) {
+    return "dominicanrepublic";  // Standardized form for Dominican Republic
+  }
+  
+  // Add special handling for Ivory Coast / Côte d'Ivoire
+  if (name.toLowerCase().includes("ivory") || 
+      name.toLowerCase().includes("ivoire") || 
+      name.toLowerCase().includes("cote") || 
+      name.toLowerCase().includes("côte")) {
+    return "Côte d'Ivoire";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Bosnia and Herzegovina
+  if (name.toLowerCase().includes("bosnia") || 
+      name.toLowerCase().includes("herzegovina") || 
+      name.toLowerCase().includes("herz")) {
+    return "Bosnia and Herz.";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Czech Republic/Czechia variations
+  if (name.toLowerCase().includes("czech") || 
+      name.toLowerCase().includes("czechia") || 
+      name.toLowerCase() === "chechia" || 
+      name.toLowerCase() === "chech republic") {
+    return "Czechia";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Guinea-Bissau
+  if ((name.toLowerCase().includes("guinea") && name.toLowerCase().includes("bissau")) ||
+      name.toLowerCase() === "guineabissau") {
+    return "Guinea-Bissau";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Saint/St. countries at the beginning of normalizeCountryName
+  
+  // Handle Saint Vincent and the Grenadines variations
+  if (name.toLowerCase().includes("vincent") || 
+      (name.toLowerCase().includes("st") && name.toLowerCase().includes("vincent")) ||
+      (name.toLowerCase().includes("saint") && name.toLowerCase().includes("vincent"))) {
+    return "St. Vincent and the Grenadines";  // Exact GeoJSON format
+  }
+
+  // Handle Saint Lucia variations
+  if (name.toLowerCase() === "st lucia" || 
+      name.toLowerCase() === "st. lucia" || 
+      name.toLowerCase() === "saint lucia" ||
+      name.toLowerCase() === "stlucia" ||
+      name.toLowerCase() === "saintlucia") {
+    return "St. Lucia";  // Exact GeoJSON format
+  }
+
+  // Handle Saint Kitts and Nevis variations
+  if (name.toLowerCase().includes("kitts") || 
+      (name.toLowerCase().includes("st") && name.toLowerCase().includes("kitt")) ||
+      (name.toLowerCase().includes("saint") && name.toLowerCase().includes("kitt"))) {
+    return "St. Kitts and Nevis";  // Exact GeoJSON format
+  }
+  
+  // Add special handling for São Tomé and Príncipe with all variations
+  if (name.toLowerCase().includes("tome") || 
+      name.toLowerCase().includes("tomé") || 
+      name.toLowerCase().includes("principe") || 
+      name.toLowerCase().includes("príncipe") || 
+      name.toLowerCase().includes("sao tome") || 
+      name.toLowerCase().includes("são tomé")) {
+    return "São Tomé and Principe";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Equatorial Guinea
+  if (name.toLowerCase().includes("equatorial") || 
+      name.toLowerCase().includes("equatorialguinea") || 
+      (name.toLowerCase().includes("eq") && name.toLowerCase().includes("guinea")) ||
+      name.toLowerCase() === "eqguinea" || 
+      name.toLowerCase() === "eq. guinea") {
+    return "Eq. Guinea";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for South Sudan
+  if (name.toLowerCase().includes("south sudan") || 
+      name.toLowerCase() === "southsudan" || 
+      name.toLowerCase() === "s sudan" || 
+      name.toLowerCase() === "ssudan" || 
+      name.toLowerCase() === "s. sudan") {
+    return "S. Sudan";  // Exact format used in GeoJSON
+  }
+
+  // Special handling for Sudan to avoid confusion with South Sudan
+  if (name.toLowerCase() === "sudan" && 
+      !name.toLowerCase().includes("south")) {
+    return "Sudan";  // Make sure regular Sudan is handled separately
+  }
+  
+  // In the normalizeCountryName function, add a special case for Somalia/Somaliland
+  if (name.toLowerCase() === "somalia" || name.toLowerCase() === "somaliland") {
+    return "Somalia";  // Exact form in GeoJSON for the main country
+  }
+  
+  // Special handling for Denmark/Greenland relationship
+  if (name.toLowerCase() === "denmark") {
+    return "Denmark";  // Exact match for the parent country
+  }
+  if (name.toLowerCase() === "greenland") {
+    return "Greenland";  // Exact match for the territory
+  }
+  
+  // Add special handling for Marshall Islands
+  if (name.toLowerCase().includes("marshall") || 
+      name.toLowerCase() === "marshallislands" || 
+      name.toLowerCase() === "marshall islands" || 
+      name.toLowerCase() === "marshall is" || 
+      name.toLowerCase() === "marshall is.") {
+    // Return the full name to match the recognized_countries.json format
+    return "Marshall Islands";
+  }
+
+  // Add special handling for Solomon Islands
+  if (name.toLowerCase().includes("solomon") || 
+      name.toLowerCase() === "solomonislands" || 
+      name.toLowerCase() === "solomon islands" || 
+      name.toLowerCase() === "solomon is" || 
+      name.toLowerCase() === "solomon is.") {
+    // Return the full name to match the recognized_countries.json format
+    return "Solomon Islands";
+  }
+  
+  // Add special handling for Timor-Leste/East Timor variations
+  if (name.toLowerCase().includes("timor") || 
+      name.toLowerCase().includes("east timor") || 
+      name.toLowerCase() === "timorleste" || 
+      name.toLowerCase() === "timor-leste" || 
+      name.toLowerCase() === "easttimor" || 
+      name.toLowerCase() === "leste") {
+    return "Timor-Leste";  // Exact format used in GeoJSON
+  }
+  
+  // Add special handling for Myanmar/Burma
+  if (name.toLowerCase() === "myanmar" || 
+      name.toLowerCase() === "burma" || 
+      name.toLowerCase().includes("myanmar") || 
+      name.toLowerCase().includes("burma")) {
+    return "Myanmar (Burma)";  // Exact format as it appears in recognized_countries.json
+  }
+  
+  // Add special handling for Eswatini (formerly Swaziland)
+  if (name.toLowerCase().includes("eswatini") || 
+      name.toLowerCase().includes("swaziland") || 
+      name.toLowerCase() === "swazi" || 
+      name.toLowerCase() === "e swatini") {
+    return "Eswatini (Swaziland)";  // Exact format as it appears in recognized_countries.json
+  }
+  
+  // Add special handling for Republic of Congo (not to be confused with DR Congo)
+  if ((name.toLowerCase().includes("republic") && name.toLowerCase().includes("congo") && 
+       !name.toLowerCase().includes("democratic") && !name.toLowerCase().includes("dem")) || 
+      name.toLowerCase() === "congo" || 
+      name.toLowerCase() === "congobrazzaville" || 
+      name.toLowerCase() === "congo brazzaville" || 
+      name.toLowerCase() === "congo republic") {
+    return "Republic of the Congo";  // Exact format as it appears in recognized_countries.json
+  }
+  
+  // Continue with the existing normalization logic
+  const normalized = name.trim().toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces, hyphens, and underscores
+    .replace(/\s+/g, ''); // Remove spaces
+  
+  // Map of country aliases for consistent name matching
+  const countryAliases = {
+    // M countries
+    "macedonia": "northmacedonia",
+    "northmacedonia": "northmacedonia",
+    "fyrom": "northmacedonia",
+    "formerrepublicofmacedonia": "northmacedonia",
+    "republiquedemacedoine": "northmacedonia",
+    
+    // Vatican
+    "vatican": "vaticancity",
+    "vaticancity": "vaticancity",
+    "holysee": "vaticancity",
+    "theholysee": "vaticancity",
+    "vaticano": "vaticancity",
+    
+    // Antigua
+    "antigua": "antiguaandbarbuda",
+    "antiguaandbarbuda": "antiguaandbarbuda",
+    "antiguabarbuda": "antiguaandbarbuda",
+    
+    // Cape Verde
+    "capeverde": "caboverde",
+    "caboverde": "caboverde",
+    
+    // Other problematic countries
+    "sttomeprinc": "saotomeandprincipe",
+    "sttomeandprincipe": "saotomeandprincipe",
+    "saotome": "saotomeandprincipe",
+    "saotomeandprincipe": "saotomeandprincipe",
+    
+    "republicofthekongo": "congorepublic",
+    "congo": "congorepublic",
+    "republicofcongo": "congorepublic",
+    "congobrazzaville": "congorepublic",
+    "congorepublic": "congorepublic",
+    
+    "drcongo": "Dem. Rep. Congo",
+    "congodemocraticrepublic": "Dem. Rep. Congo",
+    "democraticrepublicofthecongo": "Dem. Rep. Congo",
+    "congokinshasa": "Dem. Rep. Congo",
+    
+    "saintvincentgrenadines": "stvincentandthegrenadines",
+    "saintvincentandthegrenadines": "stvincentandthegrenadines",
+    "stvincentandthegrenadines": "stvincentandthegrenadines",
+    "stvincentgrenadines": "stvincentandthegrenadines",
+    
+    "saintkittsandnevis": "stkittsandnevis",
+    "stkittsandnevis": "stkittsandnevis",
+    "stkittsnevis": "stkittsandnevis",
+    
+    "centralafricanrep": "centralafricanrepublic",
+    "centralafricanrepublic": "centralafricanrepublic",
+    "car": "centralafricanrepublic",
+
+    // Other commonly problematic countries
+    "usa": "unitedstatesofamerica",
+    "unitedstates": "unitedstatesofamerica",
+    "america": "unitedstatesofamerica",
+    "us": "unitedstatesofamerica",
+    
+    "uk": "unitedkingdom",
+    "greatbritain": "unitedkingdom",
+    "england": "unitedkingdom",
+    
+    // Add many more aliases here...
+    "kazakhstan": "kazakhstan",
+    "kazakstan": "kazakhstan", 
+    "kazahstan": "kazakhstan",
+    "khazakstan": "kazakhstan",
+    "kazakhstani": "kazakhstan",
+    "kazak": "kazakhstan",
+
+    // Add UAE variants
+    "uae": "unitedarabemirates",
+    "united arab emirates": "unitedarabemirates",
+    "unitedarabemirates": "unitedarabemirates",
+    "emirates": "unitedarabemirates",
+    "arab emirates": "unitedarabemirates",
+    "united emirates": "unitedarabemirates",
+  };
+  
+  // Check if we have an alias for this normalized name
+  return countryAliases[normalized] || normalized;
+}
 
 // Helper function to get all territories for a country
 export function getTerritoriesForCountry(countryName) {
@@ -562,7 +707,23 @@ export function getTerritoriesForCountry(countryName) {
   
   // Special case: if the normalized name is "greenland", return only Greenland
   if (normalized === "greenland") {
-    return ["greenland"];
+    return ["Greenland"];
+  }
+
+  // Special case: if the normalized name is "denmark", explicitly return its territories
+  if (normalized === "denmark") {
+    return ["Greenland", "Faeroe Is."];
+  }
+
+  // Special case: if the normalized name is "united states" or variants, return US territories
+  if (normalized === "united states" || normalized === "united states of america" || 
+      normalized === "usa" || normalized === "us" || normalized === "america") {
+    return ["puerto rico", "guam", "u.s. virgin is.", "n. mariana is.", "american samoa"];
+  }
+
+  // Special case for Somalia
+  if (normalized === "somalia") {
+    return ["Somaliland"];  // Use exact capitalization from GeoJSON
   }
 
   // For "Sudan" and "South Sudan", do not automatically add territories
@@ -585,12 +746,20 @@ export function getTerritoryMatch(guess) {
   }
   // Special handling: if user types "denmark" (or "greenland"), return "Greenland"
   if (normalizedGuess === "denmark" || normalizedGuess === "greenland") {
-    return "Greenland";
+    return "Greenland";  // Use exact format for GeoJSON match
   }
-  // Special handling: if user types "somalia", return "Somaliland" as well
-  if (normalizedGuess === "somalia" || normalizedGuess === "somaliland") {
-    return "Somaliland";
+  // Special handling: if user types "somaliland", it should return "Somalia"
+  if (normalizedGuess === "somaliland") {
+    return "Somalia";  // Return the parent country for the territory
   }
+  // Special handling: if user types a US territory, return "United States of America"
+  if (normalizedGuess === "puerto rico" || normalizedGuess === "guam" || 
+      normalizedGuess === "us virgin islands" || normalizedGuess === "us virgin is" || 
+      normalizedGuess === "u.s. virgin is." || normalizedGuess === "northern mariana islands" || 
+      normalizedGuess === "n. mariana is." || normalizedGuess === "american samoa") {
+    return "United States of America";
+  }
+  
   const key = Object.keys(territoryMap).find(
     k => k.toLowerCase() === normalizedGuess
   );
