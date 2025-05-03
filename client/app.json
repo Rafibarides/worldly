@@ -2,29 +2,32 @@
   "expo": {
     "name": "worldly",
     "slug": "worldly",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "client/assets/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "client/assets/splash-icon.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#72B256"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rafi-barides.worldly"
+      "bundleIdentifier": "com.rafi-barides.worldly",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "client/assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.rafi_barides.worldly"
     },
     "web": {
-      "favicon": "client/assets/favicon.png"
+      "favicon": "./assets/favicon.png"
     },
     "assetBundlePatterns": [
       "**/*",
