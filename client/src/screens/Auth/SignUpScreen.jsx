@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, database } from '../../services/firebase';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { auth as authApi } from '../../services/api';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,7 +10,6 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
-import { generateAndUploadAvatar } from '../../services/avatarService';
 
 export default function SignUpScreen({ navigation }) {
   const { setCurrentUser } = useAuth();
@@ -152,17 +148,13 @@ export default function SignUpScreen({ navigation }) {
     }
 
     try {
-      const lowerName = replacedName.trim().toLowerCase();
-      const usersRef = collection(database, "users");
-      const nameQuery = query(usersRef, where("username_lower", "==", lowerName));
-      const snapshot = await getDocs(nameQuery);
-
-      if (!snapshot.empty) {
-        setUsernameAvailable(false);
-        setAvailabilityMessage('This username is taken');
-      } else {
+      const { available } = await authApi.usernameAvailable(replacedName.trim());
+      if (available) {
         setUsernameAvailable(true);
         setAvailabilityMessage('Username is available');
+      } else {
+        setUsernameAvailable(false);
+        setAvailabilityMessage('This username is taken');
       }
     } catch (error) {
       console.error("Error checking username:", error);
@@ -185,99 +177,26 @@ export default function SignUpScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Final check: Ensure no one created this username in the meantime
-      const usernameLower = username.trim().toLowerCase();
-      
-      try {
-        const usersRef = collection(database, "users");
-        const usernameQuery = query(usersRef, where("username_lower", "==", usernameLower));
-        const usernameSnapshot = await getDocs(usernameQuery);
-        
-        if (!usernameSnapshot.empty) {
-          setLoading(false);
-          Alert.alert('Error', 'Sorry, this username is taken!');
-          return;
-        }
-      } catch (queryError) {
-        console.log("Error checking username availability:", queryError);
-        // Continue with signup even if username check fails
-      }
-
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      try {
-        // Generate and upload avatar to Firebase storage
-        const avatarUrl = await generateAndUploadAvatar(user.uid);
-
-        // Include the lower-case username in the user data
-        const userData = {
-          username,
-          username_lower: usernameLower,
-          email,
-          friends: [],
-          level: 1,
-          stats: { gamesPlayed: 0, gamesWon: 0 },
-          avatarUrl,
-          uid: user.uid,
-          createdAt: Date.now(),
-        };
-
-        // Create user document in Firestore
-        const userDocRef = doc(database, "users", user.uid);
-        await setDoc(userDocRef, userData);
-        
-        // Save to AsyncStorage
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-
-        // Update auth context
-        setCurrentUser(userData);
-      } catch (profileError) {
-        console.error("Error setting up user profile:", profileError);
-        // Even if profile setup fails, at least store basic user info
-        const basicUserData = { 
-          username, 
-          username_lower: usernameLower,
-          email, 
-          uid: user.uid,
-          createdAt: Date.now()
-        };
-        
-        await AsyncStorage.setItem('user', JSON.stringify(basicUserData));
-        setCurrentUser(basicUserData);
-        
-        Alert.alert(
-          'Partial Success', 
-          'Your account was created, but we could not set up your full profile. Some features may be limited.'
-        );
-      }
-      
-      setLoading(false);
+      const user = await authApi.signUp({
+        email: email.trim(),
+        password,
+        username: username.trim(),
+      });
+      setCurrentUser(user);
     } catch (err) {
       console.error('Error during signup:', err);
-      setLoading(false);
-      
-      // Handle specific Firebase errors
-      if (err.code === 'auth/email-already-in-use') {
+      const detail = err.data?.detail || '';
+      if (err.status === 409 || err.data?.error === 'username_taken') {
+        Alert.alert('Error', 'Sorry, this username is taken!');
+      } else if (/email/i.test(detail) && /exist|use|taken/i.test(detail)) {
         Alert.alert('Error', 'This email is already registered. Please use a different email.');
-      } else if (err.code === 'auth/weak-password') {
-        Alert.alert('Error', 'Password is too weak. Please use a stronger password.');
-      } else if (err.code === 'auth/invalid-email') {
-        Alert.alert('Error', 'The email address is not valid.');
-      } else if (err.code === 'auth/network-request-failed') {
-        Alert.alert('Network Error', 'Please check your internet connection and try again.');
       } else {
-        Alert.alert('Error', err.message || 'An error occurred during signup. Please try again.');
+        Alert.alert('Error', detail || err.message || 'An error occurred during signup. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Debug log to check if Firebase is properly initialized
-    console.log("Firebase auth initialized:", !!auth);
-    console.log("Firebase database initialized:", !!database);
-  }, []);
 
   return (
     <View style={styles.container}>

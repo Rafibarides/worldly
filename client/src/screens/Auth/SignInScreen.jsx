@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, database } from '../../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import { auth as authApi } from '../../services/api';
+import Toast from 'react-native-toast-message';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,6 +11,8 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
+
+const showToast = (type, text1, text2) => Toast.show({ type, text1, text2 });
 
 export default function SignInScreen({ navigation }) {
   const { setCurrentUser } = useAuth();
@@ -112,24 +112,14 @@ export default function SignInScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const userDocRef = doc(database, "users", user.uid);
-      const userSnapshot = await getDoc(userDocRef);
-
-      if (!userSnapshot.exists()) {
-        throw new Error("User data not found in Firestore");
-      }
-
-      const userData = userSnapshot.data();
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setCurrentUser(userData);
-
-      setLoading(false);
+      const user = await authApi.logIn({ email: email.trim(), password });
+      setCurrentUser(user);
     } catch (err) {
       console.error('Login Error:', err);
+      const detail = err.data?.detail || err.message || 'Please try again.';
+      showToast('error', 'Login Failed', detail);
+    } finally {
       setLoading(false);
-      showToast('error', 'Login Failed', err.message);
     }
   };
 

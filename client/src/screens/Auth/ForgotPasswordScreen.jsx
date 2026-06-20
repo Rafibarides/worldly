@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../../services/firebase';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Linking } from 'react-native';
+import { auth as authApi } from '../../services/api';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -78,24 +77,21 @@ export default function ForgotPasswordScreen({ navigation }) {
     
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      setLoading(false);
+      const { passwordResetUrl } = await authApi.passwordReset(email.trim());
+      // WorkOS hosted reset page (when the email maps to an account).
+      if (passwordResetUrl) {
+        await Linking.openURL(passwordResetUrl);
+      }
       Alert.alert(
-        'Password Reset Email Sent',
-        'Check your email for instructions to reset your password',
+        'Reset Your Password',
+        "If an account exists for that email, we've opened a secure page to reset your password. After resetting, return here to sign in.",
         [{ text: 'OK', onPress: () => navigation.navigate('SignIn') }]
       );
     } catch (error) {
+      console.error('Error starting password reset:', error);
+      Alert.alert('Error', 'Could not start password reset. Please try again.');
+    } finally {
       setLoading(false);
-      console.error('Error sending password reset email:', error);
-      
-      if (error.code === 'auth/user-not-found') {
-        Alert.alert('Error', 'No account exists with this email address');
-      } else if (error.code === 'auth/invalid-email') {
-        Alert.alert('Error', 'Please enter a valid email address');
-      } else {
-        Alert.alert('Error', error.message || 'Failed to send password reset email');
-      }
     }
   };
   

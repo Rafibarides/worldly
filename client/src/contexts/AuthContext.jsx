@@ -1,118 +1,59 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
-import { signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { auth, database } from "../services/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { auth as authApi, getTokens } from "../services/api";
 
 const AuthContext = createContext({});
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Helper function to ensure gamesPlayed, gamesWon, and level are stored in stats
-  const cleanUserData = (userData) => {
-    if (!userData) return userData;
-    let cleaned = { ...userData };
-    cleaned.stats = cleaned.stats || {};
-    if (cleaned.gamesPlayed !== undefined) {
-      cleaned.stats.gamesPlayed = cleaned.gamesPlayed;
-      delete cleaned.gamesPlayed;
-    }
-    if (cleaned.gamesWon !== undefined) {
-      cleaned.stats.gamesWon = cleaned.gamesWon;
-      delete cleaned.gamesWon;
-    }
-    return cleaned;
-  };
-
+  // On launch: if we have a stored session, load the user from the API.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setLoading(true);
-        try {
-          // const userDocRef = doc(database, "admin", user.uid);
-          const userDocRef = doc(database, "users", user.uid);
-          const userSnapshot = await getDoc(userDocRef);
-
-          if (userSnapshot.exists()) {
-            const userData = userSnapshot.data();
-            const cleanedData = cleanUserData(userData);
-            await AsyncStorage.setItem("user", JSON.stringify(cleanedData));
-            setCurrentUser(cleanedData);
-          } else {
-            console.log("No user document found in Firestore for this user.");
-            setCurrentUser(null);
-            await AsyncStorage.removeItem("user");
-            // Optionally, redirect to the login screen if the user document is missing
-          }
-          setLoading(false);
-        } catch (error) {
-          console.error("Error getting user document:", error);
-          setCurrentUser(null);
-          await AsyncStorage.removeItem("user");
+    let active = true;
+    (async () => {
+      try {
+        const { accessToken, refreshToken } = await getTokens();
+        if (!accessToken && !refreshToken) return;
+        const { user } = await authApi.me();
+        if (active && user) {
+          setCurrentUser(user);
+          await AsyncStorage.setItem("user", JSON.stringify(user));
         }
-      } else {
-        setCurrentUser(null);
+      } catch (err) {
+        // Token invalid/expired and refresh failed — start signed out.
+        await authApi.logOut();
         await AsyncStorage.removeItem("user");
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  useEffect(() => {
-    let unsubscribe;
-    if (currentUser?.uid) {
-      const userDocRef = doc(database, "users", currentUser.uid);
-      unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const updatedData = { uid: currentUser.uid, ...docSnap.data() };
-          const cleanedData = cleanUserData(updatedData);
-          setCurrentUser(cleanedData);
-          console.log("AuthContext: Updated currentUser:", cleanedData);
-        }
-      });
-    }
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [currentUser?.uid]);
-
   const logout = async () => {
-    await signOut(auth);
+    await authApi.logOut();
     await AsyncStorage.removeItem("user");
     setCurrentUser(null);
   };
 
+  // Re-fetch the current user from the API (used after profile/stat changes).
   const fetchCurrentUser = async () => {
-    if (!auth.currentUser) return null;
-
     try {
-      const userDocRef = doc(database, "users", auth.currentUser.uid);
-      const userSnapshot = await getDoc(userDocRef);
-
-      if (userSnapshot.exists()) {
-        const userData = userSnapshot.data();
-        const cleanedData = cleanUserData(userData);
-        await AsyncStorage.setItem("user", JSON.stringify(cleanedData));
-        setCurrentUser(cleanedData);
-        return cleanedData;
+      const { user } = await authApi.me();
+      if (user) {
+        setCurrentUser(user);
+        await AsyncStorage.setItem("user", JSON.stringify(user));
       }
-      return null;
-    } catch (error) {
-      console.error("Error fetching current user:", error);
+      return user;
+    } catch (err) {
       return null;
     }
   };
 
-  const value = {
-    currentUser,
-    setCurrentUser,
-    logout,
-    loading,
-    fetchCurrentUser,
-  };
+  const value = { currentUser, setCurrentUser, logout, loading, fetchCurrentUser };
 
   return (
     <AuthContext.Provider value={value}>
@@ -121,6 +62,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);

@@ -1,11 +1,10 @@
 // Import io from the socket.io-client package
 import { io } from 'socket.io-client';
+import { API_URL } from './api';
 
-// Set the URL of your socket server (adjust to your production/development URL)
-const SOCKET_URL = 'http://localhost:3000'; // or your production URL
-
-// Create the socket instance with desired options. 
-const socket = io(SOCKET_URL, {
+// Realtime server is the same API server (consolidated). API_URL resolves to the
+// Mac's LAN IP in dev so a physical phone can connect.
+const socket = io(API_URL, {
   transports: ['websocket'], // Use WebSocket for faster and more reliable connection
   autoConnect: true,         // Automatically connect on import
 });

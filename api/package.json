@@ -1,0 +1,27 @@
+{
+  "name": "worldly-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Worldly API server: Turso (libSQL) data, WorkOS auth, Socket.IO realtime, R2 images, Expo push.",
+  "main": "src/index.mjs",
+  "scripts": {
+    "dev": "node --watch src/index.mjs",
+    "start": "node src/index.mjs",
+    "migrate": "node db/migrate.mjs",
+    "fb:export": "node scripts/1-export-firebase.mjs",
+    "fb:import": "node scripts/2-import-to-turso.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@workos-inc/node": "^7.42.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jose": "^5.9.6",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "firebase-admin": "^13.2.0"
+  }
+}
